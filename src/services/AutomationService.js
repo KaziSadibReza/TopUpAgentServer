@@ -46,13 +46,13 @@ class AutomationService {
       LogService.log("info", "Initializing The Automation...");
       try {
         // const proxyServer = process.env.PROXY_SERVER; // Format: 'http://username:password@proxy-host:port'
-        const proxyServer = "http://103.25.81.116:8080"; // Using direct proxy address
+        // const proxyServer = "http://103.25.81.116:8080"; // Using direct proxy address
 
         this.browser = await puppeteer.launch({
           headless: process.env.HEADLESS !== "false", // Default to headless
           args: [
             // Proxy configuration if provided
-            ...(proxyServer ? [`--proxy-server=${proxyServer}`] : []),
+            // ...(proxyServer ? [`--proxy-server=${proxyServer}`] : []),
             // Basic security and performance args
             "--no-sandbox",
             "--disable-setuid-sandbox",
@@ -252,7 +252,7 @@ class AutomationService {
       // Check cancellation before navigation
       await this.checkCancellation(requestId);
 
-      await page.goto("https://shop.garena.my/?app=100067&channel=202953", {
+      await page.goto("https://bot.sannysoft.com/", {
         waitUntil: "networkidle2",
         timeout: 30000,
       });
