@@ -46,7 +46,7 @@ class AutomationService {
       LogService.log("info", "Initializing The Automation...");
       try {
         // const proxyServer = process.env.PROXY_SERVER; // Format: 'http://username:password@proxy-host:port'
-        const proxyServer = "http://49.0.33.133:27039"; // Using direct proxy address
+        const proxyServer = "http://103.189.218.76:6969"; // Using direct proxy address
 
         this.browser = await puppeteer.launch({
           headless: process.env.HEADLESS !== "false", // Default to headless
