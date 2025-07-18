@@ -985,6 +985,52 @@ class AutomationService {
       );
     }
   }
+
+  // Clear all automation data from the database
+  async clearAllData() {
+    try {
+      LogService.log("info", "Starting to clear all automation data...");
+
+      // Clear all running jobs from memory
+      this.runningJobs.clear();
+
+      // Clear all data from database tables
+      if (DatabaseService.initialized) {
+        // Delete all automation logs
+        await DatabaseService.clearAutomationLogs();
+
+        // Delete all automation results
+        await DatabaseService.clearAutomationResults();
+
+        // Delete any screenshots
+        const fs = require("fs").promises;
+        const path = require("path");
+
+        try {
+          const files = await fs.readdir("screenshots");
+          for (const file of files) {
+            await fs.unlink(path.join("screenshots", file));
+          }
+          LogService.log("info", "All screenshot files deleted successfully");
+        } catch (err) {
+          LogService.log("warning", "Error deleting screenshots", {
+            error: err.message,
+          });
+        }
+      }
+
+      LogService.log("info", "All automation data cleared successfully");
+      return {
+        success: true,
+        message: "All automation data cleared successfully",
+      };
+    } catch (error) {
+      LogService.log("error", "Failed to clear automation data", {
+        error: error.message,
+      });
+      throw new Error(`Failed to clear automation data: ${error.message}`);
+    }
+  }
 }
 
 module.exports = new AutomationService();
