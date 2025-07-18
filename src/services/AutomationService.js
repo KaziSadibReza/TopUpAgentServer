@@ -247,6 +247,15 @@ class AutomationService {
         timeout: 30000,
       });
 
+      // Take screenshot after navigation
+      const navigationScreenshotPath = `screenshots/navigation-${requestId}-${Date.now()}.png`;
+      await page.screenshot({ path: navigationScreenshotPath, fullPage: true });
+      await this.logMessage(
+        requestId,
+        "info",
+        `Screenshot taken after navigation: ${navigationScreenshotPath}`
+      );
+
       await this.logMessage(
         requestId,
         "info",
