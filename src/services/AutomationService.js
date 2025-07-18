@@ -1,9 +1,19 @@
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const LogService = require("./LogService");
+const https = require("https");
+const http = require("http");
 
 // Configure stealth plugin
 puppeteer.use(StealthPlugin());
+
+// Free proxy list for testing
+const FREE_PROXIES = [
+  "sg1.proxyscrape.com:8080", // Singapore proxy
+  "sg2.proxyscrape.com:8080", // Singapore proxy
+  "my1.proxyscrape.com:8080", // Malaysia proxy
+  "sg-proxy.openproxy.space:8080", // Singapore proxy
+];
 
 class AutomationService {
   constructor() {
@@ -12,6 +22,7 @@ class AutomationService {
     this.currentPage = null;
     this.runningJobs = new Map();
     this.io = null;
+    this.currentProxyIndex = 0;
 
     // BDMB and UPBD code mappings
     this.codeMapping = {
@@ -45,6 +56,17 @@ class AutomationService {
     if (!this.browser) {
       LogService.log("info", "Initializing The Automation...");
       try {
+        // Get a working proxy
+        const proxy = process.env.PROXY || (await this.getWorkingProxy());
+        if (!proxy) {
+          LogService.log(
+            "warning",
+            "No working proxy found, continuing without proxy"
+          );
+        } else {
+          LogService.log("info", `Using proxy: ${proxy}`);
+        }
+
         this.browser = await puppeteer.launch({
           headless: process.env.HEADLESS !== "false",
           args: [
@@ -69,6 +91,22 @@ class AutomationService {
             "--lang=en-SG,en-MY,en",
             "--window-size=1366,768",
             "--timezone=Asia/Singapore",
+            // Add proxy support if available
+            ...(process.env.PROXY
+              ? [`--proxy-server=${process.env.PROXY}`]
+              : []),
+            // Additional VPS optimizations
+            "--disable-dev-profile",
+            "--disable-crash-reporter",
+            "--no-default-browser-check",
+            "--disable-notifications",
+            // Improved fingerprinting prevention
+            "--disable-canvas-aa",
+            "--disable-2d-canvas-clip-aa",
+            "--disable-features=IsolateOrigins",
+            "--disable-features=LazyFrameLoading",
+            "--disable-features=site-per-process",
+            "--disable-features=AcceptCHFrame",
           ],
           defaultViewport: {
             width: 1366,
@@ -114,10 +152,25 @@ class AutomationService {
         }
       });
 
+      // Set up headers to look like a Malaysia/Singapore browser
       await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Language": "en-SG,en-MY;q=0.9,en;q=0.8",
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        Connection: "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "sec-ch-ua-platform": "Windows",
+        "sec-ch-ua-mobile": "?0",
+        // Add geolocation headers for Malaysia/Singapore region
+        "X-Forwarded-For": process.env.SPOOF_IP || "103.8.0.0", // Malaysia IP range
+        "CF-IPCountry": "MY", // Set country to Malaysia
       });
 
       return page;
@@ -496,6 +549,57 @@ class AutomationService {
   async clearAllData() {
     await this.cleanup();
     return { success: true, message: "All automation data cleared" };
+  }
+
+  async testProxy(proxy) {
+    return new Promise((resolve) => {
+      const timeout = 5000;
+      const [host, port] = proxy.split(":");
+
+      const req = http.get(
+        {
+          host: host,
+          port: port,
+          path: "https://shop.garena.my",
+          timeout: timeout,
+        },
+        (res) => {
+          if (res.statusCode < 400) {
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        }
+      );
+
+      req.on("error", () => {
+        resolve(false);
+      });
+
+      req.on("timeout", () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+  }
+
+  async getWorkingProxy() {
+    // Try each proxy in the list
+    for (let i = 0; i < FREE_PROXIES.length; i++) {
+      const proxyIndex = (this.currentProxyIndex + i) % FREE_PROXIES.length;
+      const proxy = FREE_PROXIES[proxyIndex];
+
+      LogService.log("info", `Testing proxy: ${proxy}`);
+
+      if (await this.testProxy(proxy)) {
+        this.currentProxyIndex = proxyIndex;
+        LogService.log("info", `Found working proxy: ${proxy}`);
+        return proxy;
+      }
+    }
+
+    LogService.log("warning", "No working proxy found");
+    return null;
   }
 }
 
