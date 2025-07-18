@@ -61,22 +61,29 @@ class AutomationService {
             "--no-zygote",
             "--disable-gpu",
             "--disable-web-security",
-            "--disable-features=VizDisplayCompositor",
+            "--disable-features=VizDisplayCompositor,IsolateOrigins,site-per-process",
             "--disable-background-timer-throttling",
             "--disable-backgrounding-occluded-windows",
             "--disable-renderer-backgrounding",
             "--disable-extensions",
-            "--disable-plugins",
+            "--disable-component-extensions-with-background-pages",
             "--disable-default-apps",
             "--disable-hang-monitor",
             "--disable-popup-blocking",
             "--disable-prompt-on-repost",
             "--disable-sync",
             "--disable-translate",
+            "--disable-blink-features=AutomationControlled",
             "--disable-ipc-flooding-protection",
             "--window-size=1366,768",
+            "--ignore-certificate-errors",
+            "--enable-features=NetworkService,NetworkServiceInProcess",
           ],
-          defaultViewport: null,
+          defaultViewport: {
+            width: 1366,
+            height: 768,
+          },
+          ignoreHTTPSErrors: true,
           timeout: 60000,
         });
 
@@ -222,24 +229,95 @@ class AutomationService {
         });
       });
 
-      // Set user agent to mimic a real browser
-      await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-      );
+      // Set random user agent from a pool of recent Chrome versions
+      const userAgents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
+      ];
+      const randomUserAgent =
+        userAgents[Math.floor(Math.random() * userAgents.length)];
+      await page.setUserAgent(randomUserAgent);
 
-      // Set viewport
-      await page.setViewport({ width: 1366, height: 768 });
-
-      // Add extra headers
-      await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9",
+      // Set viewport with noise
+      const viewportHeight = 768 + Math.floor(Math.random() * 100);
+      const viewportWidth = 1366 + Math.floor(Math.random() * 100);
+      await page.setViewport({
+        width: viewportWidth,
+        height: viewportHeight,
+        deviceScaleFactor: 1,
+        hasTouch: false,
+        isLandscape: true,
+        isMobile: false,
       });
 
-      // Hide webdriver property
+      // Add extra headers to look more like a real browser
+      await page.setExtraHTTPHeaders({
+        "Accept-Language": "en-US,en;q=0.9",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "max-age=0",
+        Connection: "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-User": "?1",
+        "Sec-Fetch-Dest": "document",
+      });
+
+      // Advanced webdriver and automation flags evasion
       await page.evaluateOnNewDocument(() => {
+        // Override webdriver property
         Object.defineProperty(navigator, "webdriver", {
-          get: () => undefined,
+          get: () => false,
+          configurable: true,
         });
+
+        // Override chrome property
+        window.chrome = {
+          runtime: {},
+          loadTimes: function () {},
+          csi: function () {},
+          app: {},
+        };
+
+        // Override permissions
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) =>
+          parameters.name === "notifications"
+            ? Promise.resolve({ state: Notification.permission })
+            : originalQuery(parameters);
+
+        // Add languages
+        Object.defineProperty(navigator, "languages", {
+          get: () => ["en-US", "en"],
+        });
+
+        // Override plugins
+        Object.defineProperty(navigator, "plugins", {
+          get: () => [1, 2, 3, 4, 5],
+        });
+
+        // Add window.Notification
+        window.Notification = {
+          permission: "default",
+        };
+
+        // Add random offset to measureText
+        const getContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (contextType) {
+          const context = getContext.apply(this, arguments);
+          if (contextType === "2d") {
+            const measureText = context.measureText;
+            context.measureText = function (text) {
+              const metrics = measureText.apply(this, arguments);
+              metrics.width *= 1 + Math.random() * 0.1;
+              return metrics;
+            };
+          }
+          return context;
+        };
       });
 
       await this.logMessage(requestId, "info", "Navigating to Garena Shop...");
