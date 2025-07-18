@@ -267,19 +267,95 @@ class AutomationService {
       });
 
       // Advanced webdriver and automation flags evasion
+      // Add mouse movement simulation helper function
       await page.evaluateOnNewDocument(() => {
-        // Override webdriver property
+        window.humanInteraction = {
+          async simulateMouseMovement(element) {
+            const rect = element.getBoundingClientRect();
+            const startX = rect.left + rect.width * Math.random();
+            const startY = rect.top + rect.height * Math.random();
+            const points = [];
+            const steps = 10 + Math.floor(Math.random() * 10);
+
+            for (let i = 0; i <= steps; i++) {
+              const point = {
+                x: startX + (Math.random() - 0.5) * 50,
+                y: startY + (Math.random() - 0.5) * 50,
+                timestamp: Date.now() + i * (50 + Math.random() * 50),
+              };
+              points.push(point);
+            }
+
+            points.forEach((point) => {
+              const event = new MouseEvent("mousemove", {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                clientX: point.x,
+                clientY: point.y,
+                screenX: point.x,
+                screenY: point.y,
+                timestamp: point.timestamp,
+              });
+              document.dispatchEvent(event);
+            });
+
+            await new Promise((resolve) =>
+              setTimeout(resolve, 500 + Math.random() * 1000)
+            );
+          },
+        };
+
+        // Override webdriver property with more convincing behavior
         Object.defineProperty(navigator, "webdriver", {
           get: () => false,
           configurable: true,
+          enumerable: true,
         });
 
-        // Override chrome property
+        // Add more convincing chrome properties
         window.chrome = {
-          runtime: {},
-          loadTimes: function () {},
-          csi: function () {},
-          app: {},
+          runtime: {
+            connect: () => {},
+            sendMessage: () => {},
+            onMessage: { addListener: () => {} },
+            getPlatformInfo: (callback) => {
+              callback({ os: "win" });
+            },
+            getManifest: () => ({
+              manifest_version: 2,
+              version: "115.0.0.0",
+            }),
+          },
+          loadTimes: () => ({
+            firstPaintTime: Date.now(),
+            firstPaintAfterLoadTime: Date.now(),
+            requestTime: Date.now() - 100,
+            startLoadTime: Date.now() - 100,
+            commitLoadTime: Date.now() - 50,
+            finishDocumentLoadTime: Date.now() - 25,
+            finishLoadTime: Date.now(),
+            firstPaintAfterLoadTime: Date.now(),
+          }),
+          csi: () => ({
+            startE: Date.now(),
+            onloadT: Date.now() + 100,
+            pageT: Date.now() + 200,
+            tran: 15,
+          }),
+          app: {
+            isInstalled: false,
+            InstallState: {
+              DISABLED: "disabled",
+              INSTALLED: "installed",
+              NOT_INSTALLED: "not_installed",
+            },
+            RunningState: {
+              CANNOT_RUN: "cannot_run",
+              READY_TO_RUN: "ready_to_run",
+              RUNNING: "running",
+            },
+          },
         };
 
         // Override permissions
@@ -330,6 +406,67 @@ class AutomationService {
         timeout: 30000,
       });
 
+      // Add functions to handle reCAPTCHA
+      await page.evaluateOnNewDocument(() => {
+        // Function to detect reCAPTCHA
+        window.detectRecaptcha = async () => {
+          const frames = document.getElementsByTagName("iframe");
+          for (let frame of frames) {
+            if (frame.src.includes("recaptcha")) {
+              return frame;
+            }
+          }
+          return null;
+        };
+
+        // Function to solve reCAPTCHA puzzle
+        window.solveRecaptcha = async () => {
+          const frame = await window.detectRecaptcha();
+          if (!frame) return false;
+
+          // Wait for the reCAPTCHA to be ready
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          // Click the checkbox with human-like behavior
+          const rect = frame.getBoundingClientRect();
+          await window.humanInteraction.simulateMouseMovement(frame);
+
+          // Simulate human-like click
+          const clickEvent = new MouseEvent("click", {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+            clientX: rect.left + rect.width / 2 + (Math.random() - 0.5) * 10,
+            clientY: rect.top + rect.height / 2 + (Math.random() - 0.5) * 10,
+            screenX: rect.left + rect.width / 2,
+            screenY: rect.top + rect.height / 2,
+          });
+          frame.dispatchEvent(clickEvent);
+
+          return true;
+        };
+      });
+
+      // Check for reCAPTCHA and attempt to solve it
+      const hasRecaptcha = await page.evaluate(async () => {
+        const recaptchaFrame = await window.detectRecaptcha();
+        if (recaptchaFrame) {
+          await window.solveRecaptcha();
+          return true;
+        }
+        return false;
+      });
+
+      if (hasRecaptcha) {
+        await this.logMessage(
+          requestId,
+          "info",
+          "Detected and handling reCAPTCHA..."
+        );
+        // Wait for potential reCAPTCHA verification
+        await page.waitForTimeout(5000);
+      }
+
       // Take screenshot after navigation
       const navigationScreenshotPath = `screenshots/navigation-${requestId}-${Date.now()}.png`;
       await page.screenshot({ path: navigationScreenshotPath, fullPage: true });
@@ -360,13 +497,40 @@ class AutomationService {
       await this.checkCancellation(requestId);
 
       await this.logMessage(requestId, "info", "Entering Player ID...");
-      // Type the Player ID into the input field
-      await page.type(
-        'input[placeholder="Please enter player ID here"]',
-        playerId
+
+      // Get the input field
+      const inputField = await page.$(
+        'input[placeholder="Please enter player ID here"]'
       );
 
+      // Move mouse to input field naturally
+      await page.evaluate(async () => {
+        const input = document.querySelector(
+          'input[placeholder="Please enter player ID here"]'
+        );
+        await window.humanInteraction.simulateMouseMovement(input);
+      });
+
+      // Click the input field
+      await inputField.click();
+
+      // Type the Player ID with random delays between keystrokes
+      for (const char of playerId) {
+        await inputField.type(char, { delay: 50 + Math.random() * 150 });
+        await page.waitForTimeout(10 + Math.random() * 50);
+      }
+
       await this.logMessage(requestId, "info", "Clicking Login button...");
+
+      // Move mouse to login button naturally
+      await page.evaluate(async () => {
+        const button = document.querySelector('button[type="submit"]');
+        await window.humanInteraction.simulateMouseMovement(button);
+      });
+
+      // Add a small delay before clicking
+      await page.waitForTimeout(300 + Math.random() * 500);
+
       // Click the Login button
       await page.click('button[type="submit"]');
 
