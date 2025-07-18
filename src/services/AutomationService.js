@@ -45,9 +45,15 @@ class AutomationService {
     if (!this.browser) {
       LogService.log("info", "Initializing The Automation...");
       try {
+        // const proxyServer = process.env.PROXY_SERVER; // Format: 'http://username:password@proxy-host:port'
+        const proxyServer = "http://49.0.33.133:27039"; // Using direct proxy address
+
         this.browser = await puppeteer.launch({
           headless: process.env.HEADLESS !== "false", // Default to headless
           args: [
+            // Proxy configuration if provided
+            ...(proxyServer ? [`--proxy-server=${proxyServer}`] : []),
+            // Basic security and performance args
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
@@ -74,6 +80,10 @@ class AutomationService {
           defaultViewport: null,
           timeout: 60000,
         });
+
+        if (proxyServer) {
+          LogService.log("info", "Browser initialized with proxy server");
+        }
 
         // Add browser disconnect handler
         this.browser.on("disconnected", () => {
