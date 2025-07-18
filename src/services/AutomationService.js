@@ -75,9 +75,13 @@ class AutomationService {
             "--disable-translate",
             "--disable-blink-features=AutomationControlled",
             "--disable-ipc-flooding-protection",
+            "--lang=en-SG,en-MY,en", // Set Singapore/Malaysia language
             "--window-size=1366,768",
             "--ignore-certificate-errors",
             "--enable-features=NetworkService,NetworkServiceInProcess",
+            "--timezone=Asia/Singapore", // Set timezone to Singapore
+            "--disable-notifications",
+            "--disable-webgl",
           ],
           defaultViewport: {
             width: 1366,
@@ -231,6 +235,7 @@ class AutomationService {
 
       // Set random user agent from a pool of recent Chrome versions
       const userAgents = [
+        // Singapore/Malaysia region specific user agents
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
@@ -238,6 +243,27 @@ class AutomationService {
       const randomUserAgent =
         userAgents[Math.floor(Math.random() * userAgents.length)];
       await page.setUserAgent(randomUserAgent);
+
+      // Set geolocation to Singapore
+      await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, "geolocation", {
+          value: {
+            getCurrentPosition: (success) =>
+              success({
+                coords: {
+                  accuracy: 21,
+                  altitude: null,
+                  altitudeAccuracy: null,
+                  heading: null,
+                  latitude: 1.3521, // Singapore latitude
+                  longitude: 103.8198, // Singapore longitude
+                  speed: null,
+                },
+                timestamp: Date.now(),
+              }),
+          },
+        });
+      });
 
       // Set viewport with noise
       const viewportHeight = 768 + Math.floor(Math.random() * 100);
@@ -251,11 +277,11 @@ class AutomationService {
         isMobile: false,
       });
 
-      // Add extra headers to look more like a real browser
+      // Add extra headers to look like a browser from Singapore/Malaysia
       await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Language": "en-SG,en-MY;q=0.9,en;q=0.8",
         Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
         "Accept-Encoding": "gzip, deflate, br",
         "Cache-Control": "max-age=0",
         Connection: "keep-alive",
@@ -264,7 +290,13 @@ class AutomationService {
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-User": "?1",
         "Sec-Fetch-Dest": "document",
+        "Sec-CH-UA-Platform": "Windows",
+        "Sec-CH-UA-Mobile": "?0",
+        "X-Forwarded-For": "103.xx.xx.xx", // Singapore IP range (replace xx with random values)
       });
+
+      // Set timezone to Asia/Singapore
+      await page.emulateTimezone("Asia/Singapore");
 
       // Advanced webdriver and automation flags evasion
       // Add mouse movement simulation helper function
