@@ -1,6 +1,10 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const LogService = require("./LogService");
 const DatabaseService = require("./DatabaseService");
+
+// Add stealth plugin
+puppeteer.use(StealthPlugin());
 
 class AutomationService {
   constructor() {
@@ -45,15 +49,9 @@ class AutomationService {
     if (!this.browser) {
       LogService.log("info", "Initializing The Automation...");
       try {
-        // const proxyServer = process.env.PROXY_SERVER; // Format: 'http://username:password@proxy-host:port'
-        const proxyServer =
-          "http://topupagent:Reza01644424487@103.187.94.245:808"; // Using direct proxy address
-
         this.browser = await puppeteer.launch({
           headless: process.env.HEADLESS !== "false", // Default to headless
           args: [
-            // Proxy configuration if provided
-            ...(proxyServer ? [`--proxy-server=${proxyServer}`] : []),
             // Basic security and performance args
             "--no-sandbox",
             "--disable-setuid-sandbox",
@@ -81,10 +79,6 @@ class AutomationService {
           defaultViewport: null,
           timeout: 60000,
         });
-
-        if (proxyServer) {
-          LogService.log("info", "Browser initialized with proxy server");
-        }
 
         // Add browser disconnect handler
         this.browser.on("disconnected", () => {
