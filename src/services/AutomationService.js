@@ -45,14 +45,18 @@ class AutomationService {
     if (!this.browser) {
       LogService.log("info", "Initializing The Automation...");
       try {
-        // const proxyServer = process.env.PROXY_SERVER; // Format: 'http://username:password@proxy-host:port'
-        // const proxyServer = "http://103.25.81.116:8080"; // Using direct proxy address
+        // SOCKS5 Proxy configuration
+        const proxyServer = "socks5://BK:BK@103.35.108.178:6969";
+
+        LogService.log("info", "Using SOCKS5 proxy: 103.35.108.178:6969");
 
         this.browser = await puppeteer.launch({
           headless: process.env.HEADLESS !== "false", // Default to headless
           args: [
-            // Proxy configuration if provided
-            // ...(proxyServer ? [`--proxy-server=${proxyServer}`] : []),
+            // SOCKS5 proxy configuration
+            `--proxy-server=${proxyServer}`,
+            // SOCKS5 proxy configuration
+            `--proxy-server=${proxyServer}`,
             // Basic security and performance args
             "--no-sandbox",
             "--disable-setuid-sandbox",
@@ -81,9 +85,7 @@ class AutomationService {
           timeout: 60000,
         });
 
-        if (proxyServer) {
-          LogService.log("info", "Browser initialized with proxy server");
-        }
+        LogService.log("info", "Browser initialized with SOCKS5 proxy server");
 
         // Add browser disconnect handler
         this.browser.on("disconnected", () => {
@@ -252,7 +254,7 @@ class AutomationService {
       // Check cancellation before navigation
       await this.checkCancellation(requestId);
 
-      await page.goto("https://bot.sannysoft.com/", {
+      await page.goto("https://shop.garena.my/?app=100067&channel=202953", {
         waitUntil: "networkidle2",
         timeout: 30000,
       });
