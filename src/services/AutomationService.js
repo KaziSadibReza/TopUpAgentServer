@@ -65,7 +65,7 @@ class AutomationService {
           headless: process.env.HEADLESS !== "false", // Default to headless
           args: [
             `--proxy-server=${this.proxyUrl}`,
-            // Enhanced stealth args - make browser look completely normal
+            // ULTIMATE Stealth args - Maximum Anti-Detection
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
@@ -83,8 +83,8 @@ class AutomationService {
             "--disable-sync",
             "--disable-translate",
             "--disable-ipc-flooding-protection",
-            "--window-size=1920,1080", // More common resolution
-            // Critical stealth args
+            "--window-size=1920,1080",
+            // CRITICAL stealth args for reCAPTCHA bypass
             "--disable-blink-features=AutomationControlled",
             "--exclude-switches=enable-automation",
             "--disable-component-extensions-with-background-pages",
@@ -100,7 +100,7 @@ class AutomationService {
             "--force-color-profile=srgb",
             "--memory-pressure-off",
             "--max_old_space_size=4096",
-            // Additional residential user simulation
+            // ADVANCED Anti-reCAPTCHA measures
             "--disable-extensions-except",
             "--disable-plugins",
             "--disable-default-apps",
@@ -114,12 +114,53 @@ class AutomationService {
             "--allow-running-insecure-content",
             "--disable-background-networking",
             "--disable-client-side-phishing-detection",
-            "--disable-default-apps",
             "--disable-domain-reliability",
             "--disable-features=AudioServiceOutOfProcess",
             "--disable-background-mode",
+            // ULTIMATE reCAPTCHA prevention
+            "--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer",
+            "--disable-features=UserActivationSameOriginVisibility",
+            "--disable-features=AutofillShowTypePredictions",
+            "--disable-features=CSSContainerQueries",
+            "--disable-component-update",
+            "--disable-domain-reliability",
+            "--disable-sync",
+            "--disable-client-side-phishing-detection",
+            "--disable-default-apps",
+            "--disable-component-extensions-with-background-pages",
+            "--disable-background-networking",
+            "--disable-breakpad",
+            "--disable-crash-reporter",
+            "--disable-dev-shm-usage",
+            "--disable-extensions",
+            "--disable-features=site-per-process",
+            "--disable-hang-monitor",
+            "--disable-ipc-flooding-protection",
+            "--disable-popup-blocking",
+            "--disable-prompt-on-repost",
+            "--disable-renderer-backgrounding",
+            "--disable-sync",
+            "--disable-translate",
+            "--metrics-recording-only",
+            "--no-report-upload",
+            "--safebrowsing-disable-auto-update",
+            "--enable-automation=false",
+            "--password-store=basic",
+            "--use-mock-keychain",
+            "--hide-scrollbars",
+            "--mute-audio",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--no-first-run",
+            "--no-zygote",
+            "--disable-gpu",
+            "--log-level=3",
+            "--disable-dev-tools",
+            "--disable-device-discovery-notifications",
           ],
-          defaultViewport: { width: 1920, height: 1080 }, // Set realistic viewport
+          defaultViewport: { width: 1920, height: 1080 },
           timeout: 60000,
           ignoreDefaultArgs: [
             "--enable-automation",
@@ -285,9 +326,9 @@ class AutomationService {
         });
       });
 
-      // Set user agent to mimic a real residential user browser
+      // Set MOST REALISTIC user agent to mimic actual residential user browser
       await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
       );
 
       // Set realistic viewport
@@ -300,12 +341,12 @@ class AutomationService {
         isMobile: false,
       });
 
-      // Add comprehensive headers to mimic real residential user
+      // Add MOST REALISTIC headers to mimic actual residential user
       await page.setExtraHTTPHeaders({
         "Accept-Language": "en-US,en;q=0.9,ms;q=0.8,zh;q=0.7",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
         "Cache-Control": "max-age=0",
         Pragma: "no-cache",
         "Sec-Fetch-Site": "none",
@@ -313,68 +354,142 @@ class AutomationService {
         "Sec-Fetch-User": "?1",
         "Sec-Fetch-Dest": "document",
         "Sec-Ch-Ua":
-          '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+          '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
         "Sec-Ch-Ua-Mobile": "?0",
         "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Ch-Ua-Platform-Version": '"15.0.0"',
         "Upgrade-Insecure-Requests": "1",
         DNT: "1",
+        "X-Forwarded-For": "192.168.1.100", // Local IP simulation
+        "X-Real-IP": "203.115.77.164", // Malaysian IP simulation
       });
 
-      // Enhanced anti-detection measures with realistic browser environment
+      // ULTIMATE Anti-Detection - Maximum Stealth Configuration
       await page.evaluateOnNewDocument(() => {
-        // Remove webdriver traces
+        // COMPLETELY REMOVE ALL AUTOMATION TRACES
         Object.defineProperty(navigator, "webdriver", {
           get: () => undefined,
         });
 
-        // Add realistic plugins
+        // Remove all automation-related properties
+        delete navigator.__proto__.webdriver;
+        delete navigator.webdriver;
+
+        // Override webdriver property at prototype level
+        const originalDescriptor = Object.getOwnPropertyDescriptor(
+          Navigator.prototype,
+          "webdriver"
+        );
+        if (originalDescriptor) {
+          Object.defineProperty(Navigator.prototype, "webdriver", {
+            get: () => undefined,
+            enumerable: false,
+            configurable: true,
+          });
+        }
+
+        // Advanced plugin spoofing with realistic data
         Object.defineProperty(navigator, "plugins", {
           get: () => ({
-            length: 4,
+            length: 5,
             0: {
               name: "Chrome PDF Plugin",
               description: "Portable Document Format",
               filename: "internal-pdf-viewer",
+              length: 1,
             },
             1: {
               name: "Chrome PDF Viewer",
               description: "",
               filename: "mhjfbmdgcfjbbpaeojofohoefgiehjai",
+              length: 1,
             },
             2: {
               name: "Native Client",
               description: "",
               filename: "internal-nacl-plugin",
+              length: 2,
             },
             3: {
               name: "WebKit built-in PDF",
               description: "Portable Document Format",
               filename: "WebKit built-in PDF",
+              length: 1,
+            },
+            4: {
+              name: "Microsoft Edge PDF Viewer",
+              description: "Portable Document Format",
+              filename: "edge-pdf-viewer",
+              length: 1,
+            },
+            refresh: () => {},
+            namedItem: (name) => null,
+            item: (index) => null,
+          }),
+          enumerable: true,
+          configurable: true,
+        });
+
+        // Advanced mimeTypes spoofing
+        Object.defineProperty(navigator, "mimeTypes", {
+          get: () => ({
+            length: 4,
+            0: {
+              type: "application/pdf",
+              suffixes: "pdf",
+              description: "Portable Document Format",
+              enabledPlugin: navigator.plugins[0],
+            },
+            1: {
+              type: "application/x-google-chrome-pdf",
+              suffixes: "pdf",
+              description: "Portable Document Format",
+              enabledPlugin: navigator.plugins[1],
+            },
+            2: {
+              type: "application/x-nacl",
+              suffixes: "",
+              description: "Native Client Executable",
+              enabledPlugin: navigator.plugins[2],
+            },
+            3: {
+              type: "application/x-pnacl",
+              suffixes: "",
+              description: "Portable Native Client Executable",
+              enabledPlugin: navigator.plugins[2],
             },
           }),
+          enumerable: true,
+          configurable: true,
         });
 
-        // Real languages
+        // Enhanced language simulation
         Object.defineProperty(navigator, "languages", {
-          get: () => ["en-US", "en", "ms", "zh"],
+          get: () => ["en-US", "en", "ms-MY", "zh-CN"],
         });
 
-        // Complete Chrome object
+        // Complete Chrome runtime simulation
         window.chrome = {
           runtime: {
             onConnect: undefined,
             onMessage: undefined,
-            connect: () => {},
+            connect: () => ({
+              postMessage: () => {},
+              onMessage: { addListener: () => {} },
+            }),
             sendMessage: () => {},
+            id: "chrome-extension://invalid",
+            getManifest: () => ({}),
+            onInstalled: { addListener: () => {} },
           },
           loadTimes: function () {
             return {
-              requestTime: Date.now() / 1000 - Math.random(),
-              startLoadTime: Date.now() / 1000 - Math.random(),
-              commitLoadTime: Date.now() / 1000 - Math.random(),
-              finishDocumentLoadTime: Date.now() / 1000 - Math.random(),
-              finishLoadTime: Date.now() / 1000 - Math.random(),
-              firstPaintTime: Date.now() / 1000 - Math.random(),
+              requestTime: performance.now() / 1000,
+              startLoadTime: performance.now() / 1000,
+              commitLoadTime: performance.now() / 1000,
+              finishDocumentLoadTime: performance.now() / 1000,
+              finishLoadTime: performance.now() / 1000,
+              firstPaintTime: performance.now() / 1000,
               firstPaintAfterLoadTime: 0,
               navigationType: "Other",
               wasFetchedViaSpdy: false,
@@ -386,9 +501,9 @@ class AutomationService {
           },
           csi: function () {
             return {
-              startE: Date.now(),
-              onloadT: Date.now() + Math.random() * 1000,
-              pageT: Math.random() * 1000,
+              startE: performance.now(),
+              onloadT: performance.now(),
+              pageT: performance.now(),
               tran: 15,
             };
           },
@@ -404,26 +519,47 @@ class AutomationService {
               READY_TO_RUN: "ready_to_run",
               RUNNING: "running",
             },
+            getDetails: () => ({}),
+            getIsInstalled: () => false,
           },
         };
 
-        // Realistic permissions
+        // Enhanced permissions with realistic responses
         const originalQuery = window.navigator.permissions?.query;
         if (originalQuery) {
           window.navigator.permissions.query = (parameters) => {
-            return parameters.name === "notifications"
-              ? Promise.resolve({ state: "granted" })
-              : originalQuery(parameters);
+            const responses = {
+              notifications: { state: "default" },
+              camera: { state: "prompt" },
+              microphone: { state: "prompt" },
+              geolocation: { state: "prompt" },
+              "persistent-storage": { state: "prompt" },
+            };
+            return Promise.resolve(
+              responses[parameters.name] || { state: "prompt" }
+            );
           };
         }
 
-        // Realistic screen properties with slight randomization
-        Object.defineProperty(screen, "availHeight", {
-          get: () => 1040 + Math.floor(Math.random() * 20),
+        // Advanced screen simulation with realistic variance
+        const baseWidth = 1920;
+        const baseHeight = 1080;
+        const variance = Math.floor(Math.random() * 10) - 5;
+
+        Object.defineProperty(screen, "width", {
+          get: () => baseWidth + variance,
+        });
+
+        Object.defineProperty(screen, "height", {
+          get: () => baseHeight + variance,
         });
 
         Object.defineProperty(screen, "availWidth", {
-          get: () => 1920 + Math.floor(Math.random() * 20),
+          get: () => baseWidth + variance,
+        });
+
+        Object.defineProperty(screen, "availHeight", {
+          get: () => baseHeight - 40 + variance, // Account for taskbar
         });
 
         Object.defineProperty(screen, "colorDepth", {
@@ -434,48 +570,194 @@ class AutomationService {
           get: () => 24,
         });
 
-        // Add connection information
+        // Advanced connection simulation
         Object.defineProperty(navigator, "connection", {
           get: () => ({
             effectiveType: "4g",
-            downlink: 10,
-            rtt: 50,
+            downlink: 8.5 + Math.random() * 3,
+            rtt: 45 + Math.random() * 15,
             saveData: false,
+            type: "wifi",
           }),
         });
 
-        // Hardware concurrency
+        // Hardware simulation
         Object.defineProperty(navigator, "hardwareConcurrency", {
           get: () => 8,
         });
 
-        // Device memory
         Object.defineProperty(navigator, "deviceMemory", {
           get: () => 8,
         });
 
-        // Battery API (if available)
+        // Advanced battery simulation
         if (navigator.getBattery) {
           navigator.getBattery = () =>
             Promise.resolve({
-              level: 0.8 + Math.random() * 0.2,
-              charging: Math.random() > 0.5,
-              chargingTime: Infinity,
-              dischargingTime: 3600 + Math.random() * 7200,
+              level: 0.75 + Math.random() * 0.24,
+              charging: Math.random() > 0.3,
+              chargingTime:
+                Math.random() > 0.5 ? Infinity : 3600 + Math.random() * 7200,
+              dischargingTime: 7200 + Math.random() * 14400,
+              addEventListener: () => {},
+              removeEventListener: () => {},
             });
         }
 
-        // Remove automation indicators
+        // Advanced timezone simulation
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        Object.defineProperty(
+          Intl.DateTimeFormat.prototype,
+          "resolvedOptions",
+          {
+            value: function () {
+              return {
+                locale: "en-US",
+                calendar: "gregory",
+                numberingSystem: "latn",
+                timeZone: timezone,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              };
+            },
+          }
+        );
+
+        // Realistic canvas fingerprinting
+        const getContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (type, attributes) {
+          const context = getContext.call(this, type, attributes);
+          if (type === "2d") {
+            const imageData = context.getImageData;
+            context.getImageData = function (...args) {
+              const data = imageData.apply(this, args);
+              // Add slight noise to avoid fingerprinting
+              for (let i = 0; i < data.data.length; i += 4) {
+                data.data[i] += Math.floor(Math.random() * 3) - 1;
+                data.data[i + 1] += Math.floor(Math.random() * 3) - 1;
+                data.data[i + 2] += Math.floor(Math.random() * 3) - 1;
+              }
+              return data;
+            };
+          }
+          return context;
+        };
+
+        // Remove automation indicators completely
         delete Object.getPrototypeOf(navigator).webdriver;
 
-        // Override toString methods to hide modifications
+        // Advanced toString override to hide all modifications
         const originalToString = Function.prototype.toString;
         Function.prototype.toString = function () {
           if (this === navigator.permissions.query) {
             return "function query() { [native code] }";
           }
+          if (this === HTMLCanvasElement.prototype.getContext) {
+            return "function getContext() { [native code] }";
+          }
+          if (this === window.chrome.loadTimes) {
+            return "function loadTimes() { [native code] }";
+          }
+          if (this === window.chrome.csi) {
+            return "function csi() { [native code] }";
+          }
           return originalToString.apply(this, arguments);
         };
+
+        // Advanced WebGL fingerprinting protection
+        const getParameter = WebGLRenderingContext.prototype.getParameter;
+        WebGLRenderingContext.prototype.getParameter = function (parameter) {
+          // Spoof common WebGL parameters to avoid fingerprinting
+          if (parameter === 37445) {
+            // UNMASKED_VENDOR_WEBGL
+            return "Intel Inc.";
+          }
+          if (parameter === 37446) {
+            // UNMASKED_RENDERER_WEBGL
+            return "Intel(R) UHD Graphics 630";
+          }
+          return getParameter.call(this, parameter);
+        };
+
+        // Advanced AudioContext fingerprinting protection
+        if (window.AudioContext) {
+          const audioContext = AudioContext.prototype.createOscillator;
+          AudioContext.prototype.createOscillator = function () {
+            const oscillator = audioContext.call(this);
+            const originalStart = oscillator.start;
+            oscillator.start = function (when) {
+              return originalStart.call(this, when + Math.random() * 0.0001);
+            };
+            return oscillator;
+          };
+        }
+
+        // Hide automation traces in error stack traces
+        Error.prepareStackTrace = function (error, stack) {
+          return stack
+            .map((frame) => {
+              return frame
+                .toString()
+                .replace(/puppeteer|chrome-devtools|webdriver/gi, "browser");
+            })
+            .join("\n");
+        };
+
+        // Advanced mouse and keyboard event simulation
+        const originalAddEventListener = EventTarget.prototype.addEventListener;
+        EventTarget.prototype.addEventListener = function (
+          type,
+          listener,
+          options
+        ) {
+          // Add realistic event timestamps and properties
+          if (type === "mousemove" || type === "click" || type === "keydown") {
+            const wrappedListener = function (event) {
+              Object.defineProperty(event, "isTrusted", { get: () => true });
+              return listener.call(this, event);
+            };
+            return originalAddEventListener.call(
+              this,
+              type,
+              wrappedListener,
+              options
+            );
+          }
+          return originalAddEventListener.call(this, type, listener, options);
+        };
+
+        // Completely hide automation detection
+        Object.defineProperty(window, "outerHeight", {
+          get: () => window.innerHeight + Math.floor(Math.random() * 100) + 100,
+        });
+
+        Object.defineProperty(window, "outerWidth", {
+          get: () => window.innerWidth + Math.floor(Math.random() * 100) + 100,
+        });
+
+        // Advanced stealth - prevent detection through timing attacks
+        const originalPerformanceNow = performance.now;
+        performance.now = function () {
+          return originalPerformanceNow.call(this) + Math.random() * 0.1;
+        };
+
+        // Advanced Date simulation to prevent timing-based detection
+        const originalDate = Date;
+        Date = function (...args) {
+          if (args.length === 0) {
+            return new originalDate(originalDate.now() + Math.random() * 1000);
+          }
+          return new originalDate(...args);
+        };
+        Object.setPrototypeOf(Date, originalDate);
+        Object.defineProperty(Date, "prototype", {
+          value: originalDate.prototype,
+        });
+
+        console.log(
+          "🔒 ULTIMATE STEALTH MODE ACTIVATED - ALL AUTOMATION TRACES REMOVED"
+        );
       });
 
       await this.logMessage(requestId, "info", "Navigating to Garena Shop...");
