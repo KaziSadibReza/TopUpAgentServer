@@ -1489,3 +1489,7 @@
 2025-07-22T17:27:46.396Z [INFO]: Closing browser... 
 2025-07-22T17:27:46.810Z [INFO]: Browser closed 
 2025-07-22T17:27:46.812Z [INFO]: Proxy chain closed 
+2025-07-22T17:40:09.688Z [INFO]: LogService initialized 
+2025-07-22T17:40:09.692Z [INFO]: Socket.IO instance set for AutomationService 
+2025-07-22T17:40:09.698Z [INFO]: Server started on port 3000 
+2025-07-22T17:40:09.733Z [INFO]: Database initialized successfully 
