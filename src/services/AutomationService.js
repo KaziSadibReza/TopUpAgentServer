@@ -1,4 +1,5 @@
 const puppeteer = require("puppeteer");
+const ProxyChain = require("proxy-chain");
 const LogService = require("./LogService");
 const DatabaseService = require("./DatabaseService");
 
@@ -45,18 +46,21 @@ class AutomationService {
     if (!this.browser) {
       LogService.log("info", "Initializing The Automation...");
       try {
-        // SOCKS5 Proxy configuration
-        const proxyServer = "socks5://BK:BK@59.153.18.230:1052";
+        // SOCKS5 proxy configuration using proxy-chain
+        const originalProxy = "socks5://BK:BK@59.153.18.230:1052";
 
-        LogService.log("info", "Using SOCKS5 proxy: 59.153.18.230:1052");
+        // Create HTTP proxy server that forwards to SOCKS5
+        this.proxyUrl = await ProxyChain.anonymizeProxy(originalProxy);
+
+        LogService.log(
+          "info",
+          `Created HTTP proxy tunnel: ${this.proxyUrl} -> ${originalProxy}`
+        );
 
         this.browser = await puppeteer.launch({
           headless: process.env.HEADLESS !== "false", // Default to headless
           args: [
-            // SOCKS5 proxy configuration
-            `--proxy-server=${proxyServer}`,
-            // SOCKS5 proxy configuration
-            `--proxy-server=${proxyServer}`,
+            `--proxy-server=${this.proxyUrl}`,
             // Basic security and performance args
             "--no-sandbox",
             "--disable-setuid-sandbox",
@@ -85,7 +89,7 @@ class AutomationService {
           timeout: 60000,
         });
 
-        LogService.log("info", "Browser initialized with SOCKS5 proxy server");
+        LogService.log("info", "Browser initialized with proxy-chain");
 
         // Add browser disconnect handler
         this.browser.on("disconnected", () => {
@@ -110,6 +114,19 @@ class AutomationService {
       await this.browser.close();
       this.browser = null;
       LogService.log("info", "Browser closed");
+    }
+
+    // Clean up proxy-chain if it exists
+    if (this.proxyUrl) {
+      try {
+        await ProxyChain.closeAnonymizedProxy(this.proxyUrl, true);
+        LogService.log("info", "Proxy chain closed");
+        this.proxyUrl = null;
+      } catch (error) {
+        LogService.log("warning", "Failed to close proxy chain", {
+          error: error.message,
+        });
+      }
     }
   }
 
