@@ -26,7 +26,7 @@ jobs:
           private-ssh-key: ${{ secrets.SSH_KEY }} # The private key used for SSH authentication
           ssh-port: ${{ secrets.FTP_PORT }} # Custom SSH port
           source-path: ./src # The local directory to upload
-          destination-path: /root/TopUpAgentServer/src # Remote path on the server
+          destination-path: /root/TopUpAgentServer/ # Remote path on the server
 
       - name: Deploy package.json
         uses: SamKirkland/web-deploy@v1
