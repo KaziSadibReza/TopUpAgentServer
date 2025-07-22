@@ -65,99 +65,43 @@ class AutomationService {
           headless: process.env.HEADLESS !== "false", // Default to headless for VPS
           args: [
             `--proxy-server=${this.proxyUrl}`,
-            // MOBILE iOS SIMULATION - iPhone 13 Pro
+            // MOBILE SIMULATION - BYPASS IP BLOCKING
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
-            "--disable-blink-features=AutomationControlled",
-            "--disable-web-security",
-            "--disable-features=VizDisplayCompositor",
-            "--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1",
-            "--window-size=375,812", // iPhone 13 Pro screen
-            "--device-scale-factor=3",
-            "--mobile",
-            "--touch-events",
-            "--enable-touch-drag-drop",
-            "--force-device-scale-factor=3",
-            "--disable-images", // Faster loading on VPS
-            // ULTIMATE reCAPTCHA BYPASS - Linux Optimized
+            "--disable-gpu",
             "--disable-blink-features=AutomationControlled",
             "--exclude-switches=enable-automation",
-            "--disable-component-extensions-with-background-pages",
-            "--disable-logging",
-            "--disable-plugins-discovery",
-            "--no-default-browser-check",
-            "--no-pings",
-            "--no-service-autorun",
-            "--disable-hang-monitor",
-            "--disable-popup-blocking",
-            "--disable-prompt-on-repost",
-            "--disable-sync",
-            "--disable-translate",
-            "--memory-pressure-off",
-            "--max_old_space_size=4096",
-            "--window-size=1920,1080",
-            // LINUX SPECIFIC OPTIMIZATIONS
-            "--disable-background-networking",
-            "--disable-client-side-phishing-detection",
-            "--disable-domain-reliability",
-            "--disable-features=AudioServiceOutOfProcess",
-            "--disable-background-mode",
-            "--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer",
-            "--disable-features=UserActivationSameOriginVisibility",
-            "--disable-features=AutofillShowTypePredictions",
-            "--disable-features=CSSContainerQueries",
-            "--disable-component-update",
-            "--disable-breakpad",
-            "--disable-crash-reporter",
-            "--disable-features=site-per-process",
-            "--metrics-recording-only",
-            "--no-report-upload",
-            "--safebrowsing-disable-auto-update",
-            "--enable-automation=false",
-            "--hide-scrollbars",
-            "--mute-audio",
-            "--disable-accelerated-2d-canvas",
-            "--log-level=3",
-            "--disable-dev-tools",
-            "--disable-device-discovery-notifications",
-            // ADVANCED LINUX ANTI-DETECTION
-            "--use-gl=disabled",
-            "--disable-gl-drawing-for-tests",
-            "--disable-canvas-aa",
-            "--disable-3d-apis",
-            "--disable-accelerated-video-decode",
-            "--disable-accelerated-mjpeg-decode",
-            "--disable-app-list-dismiss-on-blur",
+            "--no-first-run",
             "--disable-default-apps",
+            // Mobile-specific optimizations
+            "--use-mobile-user-agent",
+            "--force-device-scale-factor=3",
+            "--window-size=375,812", // iPhone 13 Pro dimensions
+            "--disable-desktop-notifications",
             "--disable-web-security",
-            "--ignore-certificate-errors",
-            "--ignore-ssl-errors",
             "--allow-running-insecure-content",
-            "--ignore-certificate-errors-spki-list",
-            "--ignore-ssl-errors-list",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-            "--disable-features=VizDisplayCompositor",
-            "--run-all-compositor-stages-before-draw",
-            "--disable-new-content-rendering-timeout",
-            // AGGRESSIVE FINGERPRINT MASKING
-            "--user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'",
-            "--disable-features=WebRtcHideLocalIpsWithMdns",
-            "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
-            "--disable-webrtc-multiple-routes",
-            "--disable-webrtc-hw-decoding",
-            "--disable-webrtc-hw-encoding",
+            // Essential anti-detection
+            "--disable-extensions",
+            "--disable-plugins",
+            "--disable-background-networking",
+            "--disable-domain-reliability",
+            "--no-report-upload",
+            "--disable-component-update",
+            "--metrics-recording-only",
           ],
-          defaultViewport: { width: 1920, height: 1080 },
+          defaultViewport: { 
+            width: 375, 
+            height: 812,
+            deviceScaleFactor: 3,
+            isMobile: true,
+            hasTouch: true,
+            isLandscape: false
+          },
           timeout: 120000, // Increased timeout for VPS
           ignoreDefaultArgs: [
             "--enable-automation",
             "--enable-blink-features=AutomationControlled",
-            "--disable-extensions",
-            "--disable-default-apps",
-            "--disable-component-extensions-with-background-pages",
           ],
           ignoreHTTPSErrors: true,
           executablePath: process.env.CHROME_EXECUTABLE_PATH || undefined, // Allow custom Chrome path
@@ -320,86 +264,131 @@ class AutomationService {
         });
       });
 
-      // Set LINUX USER AGENT for Ubuntu VPS environment
+      // Set MOBILE USER AGENT for iOS Safari simulation
       await page.setUserAgent(
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1"
       );
 
-      // Set realistic viewport
+      // Set mobile viewport
       await page.setViewport({
-        width: 1920,
-        height: 1080,
-        deviceScaleFactor: 1,
-        hasTouch: false,
-        isLandscape: true,
-        isMobile: false,
+        width: 375,
+        height: 812,
+        deviceScaleFactor: 3,
+        hasTouch: true,
+        isLandscape: false,
+        isMobile: true,
       });
 
-      // Add LINUX-OPTIMIZED headers for Ubuntu VPS
+      // Add MOBILE-OPTIMIZED headers for iOS Safari
       await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9,ms;q=0.8,zh;q=0.7",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Cache-Control": "max-age=0",
-        Pragma: "no-cache",
+        "Accept-Language": "en-US,en;q=0.9,ms;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
         "Sec-Fetch-Site": "none",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-User": "?1",
         "Sec-Fetch-Dest": "document",
-        "Sec-Ch-Ua":
-          '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-        "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": '"Linux"', // Changed to Linux
-        "Sec-Ch-Ua-Platform-Version": '"6.8.0"', // Ubuntu version
-        "Upgrade-Insecure-Requests": "1",
-        DNT: "1",
-        "X-Forwarded-For": "192.168.1.100", // Local IP simulation
-        "X-Real-IP": "203.115.77.164", // Malaysian IP simulation
+        "Sec-Ch-Ua": '"Safari";v="15", "Mobile Safari";v="15"',
+        "Sec-Ch-Ua-Mobile": "?1",
+        "Sec-Ch-Ua-Platform": '"iOS"',
       });
 
-      // ULTIMATE Anti-Detection - Maximum Stealth Mode v2.0
+      // MOBILE iOS SAFARI SIMULATION - BYPASS IP BLOCKING
       await page.evaluateOnNewDocument(() => {
-        // COMPLETE AUTOMATION EVASION - MOST ADVANCED DETECTION BYPASS
-
-        // Immediately hide all automation traces before any detection
-        const webdriverDescriptor = Object.getOwnPropertyDescriptor(
-          Navigator.prototype,
-          "webdriver"
-        );
-        if (webdriverDescriptor) {
-          delete Navigator.prototype.webdriver;
-        }
-
-        // Multiple layers of webdriver concealment
-        Object.defineProperty(navigator, "webdriver", {
+        // Remove webdriver traces (essential)
+        Object.defineProperty(navigator, 'webdriver', {
           get: () => undefined,
-          enumerable: false,
-          configurable: false,
+        });
+        delete window.navigator.webdriver;
+        delete window.__puppeteer_evaluation_script__;
+
+        // iOS Safari simulation
+        Object.defineProperty(navigator, 'platform', {
+          get: () => 'iPhone',
         });
 
-        // Remove all automation-related properties at multiple levels
-        delete navigator.__proto__.webdriver;
-        delete navigator.webdriver;
-        delete window.navigator.webdriver;
+        Object.defineProperty(navigator, 'vendor', {
+          get: () => 'Apple Computer, Inc.',
+        });
 
-        // Override at prototype level with non-configurable property
-        try {
-          Object.defineProperty(Navigator.prototype, "webdriver", {
-            get: () => undefined,
-            enumerable: false,
-            configurable: false,
-          });
-        } catch (e) {
-          // Silently continue if already defined
-        }
+        Object.defineProperty(navigator, 'userAgent', {
+          get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1',
+        });
 
-        // Override webdriver property at prototype level
-        const originalDescriptor = Object.getOwnPropertyDescriptor(
-          Navigator.prototype,
-          "webdriver"
-        );
-        if (originalDescriptor) {
+        // Mobile-specific properties
+        Object.defineProperty(navigator, 'maxTouchPoints', {
+          get: () => 5, // iPhone supports 5-finger touch
+        });
+
+        Object.defineProperty(navigator, 'hardwareConcurrency', {
+          get: () => 6, // iPhone 13 Pro has 6 cores
+        });
+
+        Object.defineProperty(navigator, 'deviceMemory', {
+          get: () => 6, // iPhone 13 Pro has 6GB RAM
+        });
+
+        // iOS screen properties
+        Object.defineProperty(screen, 'width', {
+          get: () => 375,
+        });
+
+        Object.defineProperty(screen, 'height', {
+          get: () => 812,
+        });
+
+        // Mobile connection simulation
+        Object.defineProperty(navigator, 'connection', {
+          get: () => ({
+            effectiveType: '4g',
+            downlink: 8.2,
+            rtt: 65,
+            saveData: false,
+            type: 'cellular'
+          }),
+        });
+
+        // iOS Safari plugins (none)
+        Object.defineProperty(navigator, 'plugins', {
+          get: () => ({
+            length: 0,
+            refresh: () => {},
+          }),
+        });
+
+        // Language settings
+        Object.defineProperty(navigator, 'languages', {
+          get: () => ['en-US', 'en', 'ms'], // Include Malay for Malaysia
+        });
+
+        // Touch events support
+        window.TouchEvent = window.TouchEvent || function() {};
+        window.Touch = window.Touch || function() {};
+
+        // Mobile-specific APIs
+        Object.defineProperty(navigator, 'standalone', {
+          get: () => false,
+        });
+
+        // Webkit-specific properties
+        window.webkit = {
+          messageHandlers: {}
+        };
+
+        console.log('📱 iOS Safari mobile simulation activated - IP blocking bypassed');
+      });
+
+      await this.logMessage(
+        requestId,
+        "info",
+        "Verifying stealth configuration..."
+      );
+
+      // MOBILE DEVICE TEST - Verify browser setup
+      const stealth = StealthPlugin();
           Object.defineProperty(Navigator.prototype, "webdriver", {
             get: () => undefined,
             enumerable: false,
@@ -1041,10 +1030,7 @@ class AutomationService {
           });
         }
 
-        console.log(
-          "🔒 UBUNTU VPS STEALTH MODE ACTIVATED - ALL AUTOMATION TRACES REMOVED"
-        );
-      });
+
 
       await this.logMessage(
         requestId,
