@@ -362,16 +362,41 @@ class AutomationService {
         "X-Real-IP": "203.115.77.164", // Malaysian IP simulation
       });
 
-      // ULTIMATE Anti-Detection - Ubuntu VPS Optimized Configuration
+      // ULTIMATE Anti-Detection - Maximum Stealth Mode v2.0
       await page.evaluateOnNewDocument(() => {
-        // COMPLETELY REMOVE ALL AUTOMATION TRACES
+        // COMPLETE AUTOMATION EVASION - MOST ADVANCED DETECTION BYPASS
+
+        // Immediately hide all automation traces before any detection
+        const webdriverDescriptor = Object.getOwnPropertyDescriptor(
+          Navigator.prototype,
+          "webdriver"
+        );
+        if (webdriverDescriptor) {
+          delete Navigator.prototype.webdriver;
+        }
+
+        // Multiple layers of webdriver concealment
         Object.defineProperty(navigator, "webdriver", {
           get: () => undefined,
+          enumerable: false,
+          configurable: false,
         });
 
-        // Remove all automation-related properties
+        // Remove all automation-related properties at multiple levels
         delete navigator.__proto__.webdriver;
         delete navigator.webdriver;
+        delete window.navigator.webdriver;
+
+        // Override at prototype level with non-configurable property
+        try {
+          Object.defineProperty(Navigator.prototype, "webdriver", {
+            get: () => undefined,
+            enumerable: false,
+            configurable: false,
+          });
+        } catch (e) {
+          // Silently continue if already defined
+        }
 
         // Override webdriver property at prototype level
         const originalDescriptor = Object.getOwnPropertyDescriptor(
@@ -385,6 +410,91 @@ class AutomationService {
             configurable: true,
           });
         }
+
+        // ADVANCED ANTI-CAPTCHA MEASURES
+        // 1. Complete Chrome DevTools Protocol concealment
+        delete window.chrome.runtime.onConnect;
+        delete window.chrome.runtime.onMessage;
+
+        // 2. Hide Puppeteer-specific properties
+        delete window.__puppeteer_evaluation_script__;
+        delete window.navigator.platform.webdriver;
+        delete window.document.$cdc_asdjflasutopfhvcZLmcfl_;
+
+        // 3. Advanced permission spoofing to bypass detection
+        const originalPermissionsQuery = navigator.permissions.query;
+        navigator.permissions.query = function (parameters) {
+          const fakeResponses = {
+            notifications: Promise.resolve({ state: "default" }),
+            geolocation: Promise.resolve({ state: "denied" }),
+            camera: Promise.resolve({ state: "denied" }),
+            microphone: Promise.resolve({ state: "denied" }),
+            "persistent-storage": Promise.resolve({ state: "denied" }),
+            "background-sync": Promise.resolve({ state: "denied" }),
+            midi: Promise.resolve({ state: "denied" }),
+          };
+
+          if (parameters && parameters.name && fakeResponses[parameters.name]) {
+            return fakeResponses[parameters.name];
+          }
+
+          return originalPermissionsQuery.apply(this, arguments);
+        };
+
+        // 4. Advanced timing attack prevention
+        const originalDateNow = Date.now;
+        const originalDateGetTime = Date.prototype.getTime;
+        const startTime = originalDateNow();
+
+        Date.now = function () {
+          return (
+            startTime +
+            Math.floor(
+              (originalDateNow() - startTime) * (0.99 + Math.random() * 0.02)
+            )
+          );
+        };
+
+        Date.prototype.getTime = function () {
+          return (
+            startTime +
+            Math.floor(
+              (originalDateGetTime.call(this) - startTime) *
+                (0.99 + Math.random() * 0.02)
+            )
+          );
+        };
+
+        // 5. Memory and CPU fingerprint spoofing for VPS stealth
+        Object.defineProperty(navigator, "deviceMemory", {
+          get: () => 8, // Realistic for mid-range desktop
+          enumerable: true,
+          configurable: false,
+        });
+
+        Object.defineProperty(navigator, "hardwareConcurrency", {
+          get: () => 4, // Standard desktop CPU
+          enumerable: true,
+          configurable: false,
+        });
+
+        // 6. Network timing spoofing
+        const originalFetch = window.fetch;
+        window.fetch = function (...args) {
+          const startTime = performance.now();
+          return originalFetch.apply(this, args).then((response) => {
+            const endTime = performance.now();
+            const duration = endTime - startTime;
+
+            // Add realistic network latency simulation
+            if (duration < 10) {
+              return new Promise((resolve) => {
+                setTimeout(() => resolve(response), 10 + Math.random() * 20);
+              });
+            }
+            return response;
+          });
+        };
 
         // LINUX SPECIFIC - Platform simulation
         Object.defineProperty(navigator, "platform", {
@@ -581,38 +691,99 @@ class AutomationService {
           }
         );
 
-        // Realistic canvas fingerprinting with Linux signature
+        // ADVANCED Canvas and WebGL fingerprinting evasion
         const getContext = HTMLCanvasElement.prototype.getContext;
         HTMLCanvasElement.prototype.getContext = function (type, attributes) {
           const context = getContext.call(this, type, attributes);
+
           if (type === "2d") {
-            const imageData = context.getImageData;
+            // Override getImageData with sophisticated noise injection
+            const originalGetImageData = context.getImageData;
             context.getImageData = function (...args) {
-              const data = imageData.apply(this, args);
-              // Add slight noise specific to Linux rendering
+              const data = originalGetImageData.apply(this, args);
+
+              // Add consistent but subtle noise that mimics real Linux rendering
+              const seed = 12345; // Consistent seed for repeatable fingerprint
+              let random = seed;
+
               for (let i = 0; i < data.data.length; i += 4) {
-                data.data[i] += Math.floor(Math.random() * 2) - 1;
-                data.data[i + 1] += Math.floor(Math.random() * 2) - 1;
-                data.data[i + 2] += Math.floor(Math.random() * 2) - 1;
+                // Simple PRNG for consistent noise
+                random = (random * 9301 + 49297) % 233280;
+                const noise = (random / 233280) * 2 - 1;
+
+                // Apply minimal noise to avoid detection
+                data.data[i] += Math.floor(noise * 0.5); // R
+                data.data[i + 1] += Math.floor(noise * 0.5); // G
+                data.data[i + 2] += Math.floor(noise * 0.5); // B
+                // Alpha channel unchanged
               }
               return data;
             };
-          }
-          return context;
-        };
 
-        // Linux WebGL fingerprinting
-        const getParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function (parameter) {
-          if (parameter === 37445) {
-            // UNMASKED_VENDOR_WEBGL
-            return "Mesa/X.org";
+            // Override toDataURL for consistent fingerprint
+            const originalToDataURL = context.canvas.toDataURL;
+            context.canvas.toDataURL = function (...args) {
+              const result = originalToDataURL.apply(this, args);
+              // Return consistent but slightly modified result
+              return result.replace(
+                /data:image\/png;base64,/,
+                "data:image/png;base64,iVBORw0KGgo="
+              );
+            };
           }
-          if (parameter === 37446) {
-            // UNMASKED_RENDERER_WEBGL
-            return "llvmpipe (LLVM 12.0.0, 256 bits)";
+
+          if (type === "webgl" || type === "experimental-webgl") {
+            // Advanced WebGL parameter spoofing
+            const originalGetParameter = context.getParameter;
+            context.getParameter = function (parameter) {
+              // Comprehensive WebGL spoofing for Linux desktop
+              const webglParams = {
+                37445: "Intel Inc.", // UNMASKED_VENDOR_WEBGL
+                37446: "Intel(R) HD Graphics 620", // UNMASKED_RENDERER_WEBGL
+                7936: "Intel Inc.", // VENDOR
+                7937: "WebGL 1.0 (OpenGL ES 2.0 Chromium)", // RENDERER
+                7938: "WebGL 1.0", // VERSION
+                35724: "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)", // SHADING_LANGUAGE_VERSION
+                3379: 16384, // MAX_TEXTURE_SIZE
+                36347: 16, // MAX_SAMPLES
+                34076: 16384, // MAX_VIEWPORT_DIMS array
+                3386: [16384, 16384], // MAX_VIEWPORT_DIMS
+                36347: 16, // MAX_SAMPLES
+                34047: 16, // MAX_VERTEX_ATTRIBS
+                34930: 64, // MAX_VARYING_VECTORS
+                35660: 16, // MAX_VERTEX_TEXTURE_IMAGE_UNITS
+                34067: 16, // MAX_TEXTURE_IMAGE_UNITS
+                36349: 32, // MAX_COMBINED_TEXTURE_IMAGE_UNITS
+                35661: 1024, // MAX_VERTEX_UNIFORM_VECTORS
+                36348: 256, // MAX_FRAGMENT_UNIFORM_VECTORS
+              };
+
+              if (webglParams.hasOwnProperty(parameter)) {
+                return webglParams[parameter];
+              }
+
+              return originalGetParameter.call(this, parameter);
+            };
+
+            // Override other WebGL methods that can be fingerprinted
+            const originalGetExtension = context.getExtension;
+            context.getExtension = function (name) {
+              // Return common extensions that exist on real systems
+              const allowedExtensions = [
+                "WEBGL_lose_context",
+                "OES_texture_float",
+                "OES_texture_half_float",
+                "OES_standard_derivatives",
+              ];
+
+              if (allowedExtensions.includes(name)) {
+                return originalGetExtension.call(this, name);
+              }
+              return null;
+            };
           }
-          return getParameter.call(this, parameter);
+
+          return context;
         };
 
         // Remove automation indicators completely
@@ -708,23 +879,365 @@ class AutomationService {
           };
         }
 
+        // ULTIMATE MOUSE BEHAVIOR EVASION
+        // Override mouse events to add realistic human characteristics
+        let mouseTrail = [];
+        let lastMouseMove = 0;
+
+        const originalCreateEvent = document.createEvent;
+        document.createEvent = function (type) {
+          const event = originalCreateEvent.call(this, type);
+
+          if (type === "MouseEvent" || type === "MouseEvents") {
+            const originalInitEvent = event.initMouseEvent;
+            event.initMouseEvent = function (
+              type,
+              canBubble,
+              cancelable,
+              view,
+              detail,
+              screenX,
+              screenY,
+              clientX,
+              clientY,
+              ctrlKey,
+              altKey,
+              shiftKey,
+              metaKey,
+              button,
+              relatedTarget
+            ) {
+              // Add human-like mouse movement variance
+              const now = Date.now();
+              const deltaTime = now - lastMouseMove;
+
+              if (type === "mousemove" && deltaTime > 10) {
+                // Add slight movement jitter
+                screenX += Math.random() * 2 - 1;
+                screenY += Math.random() * 2 - 1;
+                clientX += Math.random() * 2 - 1;
+                clientY += Math.random() * 2 - 1;
+
+                // Track mouse trail for realistic movement pattern
+                mouseTrail.push({ x: clientX, y: clientY, time: now });
+                if (mouseTrail.length > 10) mouseTrail.shift();
+
+                lastMouseMove = now;
+              }
+
+              return originalInitEvent.call(
+                this,
+                type,
+                canBubble,
+                cancelable,
+                view,
+                detail,
+                screenX,
+                screenY,
+                clientX,
+                clientY,
+                ctrlKey,
+                altKey,
+                shiftKey,
+                metaKey,
+                button,
+                relatedTarget
+              );
+            };
+          }
+
+          return event;
+        };
+
+        // Advanced scroll behavior simulation
+        let scrollHistory = [];
+        const originalScrollTo = window.scrollTo;
+        const originalScrollBy = window.scrollBy;
+
+        window.scrollTo = function (x, y) {
+          // Add realistic scroll inertia
+          const now = Date.now();
+          scrollHistory.push({ x, y, time: now });
+          if (scrollHistory.length > 5) scrollHistory.shift();
+
+          // Simulate scroll wheel momentum
+          if (typeof x === "object") {
+            const options = x;
+            if (options.behavior !== "smooth") {
+              options.behavior = "smooth";
+            }
+            return originalScrollTo.call(this, options);
+          }
+
+          return originalScrollTo.call(
+            this,
+            x + Math.random() * 1 - 0.5,
+            y + Math.random() * 1 - 0.5
+          );
+        };
+
+        window.scrollBy = function (x, y) {
+          // Add scroll variance
+          return originalScrollBy.call(
+            this,
+            x + Math.random() * 2 - 1,
+            y + Math.random() * 2 - 1
+          );
+        };
+
+        // Keyboard timing humanization
+        const originalDispatchEvent = EventTarget.prototype.dispatchEvent;
+        EventTarget.prototype.dispatchEvent = function (event) {
+          if (
+            event.type === "keydown" ||
+            event.type === "keyup" ||
+            event.type === "keypress"
+          ) {
+            // Add realistic typing variance
+            Object.defineProperty(event, "timeStamp", {
+              get: () => performance.now() + Math.random() * 5,
+              enumerable: true,
+            });
+
+            // Simulate realistic key repeat rates
+            if (event.type === "keydown" && event.repeat) {
+              const variance = Math.random() * 10 + 15; // 15-25ms variance
+              setTimeout(() => {
+                originalDispatchEvent.call(this, event);
+              }, variance);
+              return true;
+            }
+          }
+
+          return originalDispatchEvent.call(this, event);
+        };
+
+        // Comprehensive sensor spoofing
+        // Block accelerometer/gyroscope for desktop simulation
+        if (window.DeviceOrientationEvent) {
+          window.DeviceOrientationEvent = undefined;
+        }
+        if (window.DeviceMotionEvent) {
+          window.DeviceMotionEvent = undefined;
+        }
+
+        // Advanced memory fingerprint consistency
+        const memoryInfo = {
+          usedJSHeapSize: Math.floor(10000000 + Math.random() * 5000000),
+          totalJSHeapSize: Math.floor(15000000 + Math.random() * 5000000),
+          jsHeapSizeLimit: 2172649472, // Realistic limit for 4GB system
+        };
+
+        if (performance.memory) {
+          Object.defineProperty(performance.memory, "usedJSHeapSize", {
+            get: () =>
+              memoryInfo.usedJSHeapSize + Math.floor(Math.random() * 100000),
+            enumerable: true,
+          });
+          Object.defineProperty(performance.memory, "totalJSHeapSize", {
+            get: () =>
+              memoryInfo.totalJSHeapSize + Math.floor(Math.random() * 100000),
+            enumerable: true,
+          });
+          Object.defineProperty(performance.memory, "jsHeapSizeLimit", {
+            get: () => memoryInfo.jsHeapSizeLimit,
+            enumerable: true,
+          });
+        }
+
         console.log(
           "🔒 UBUNTU VPS STEALTH MODE ACTIVATED - ALL AUTOMATION TRACES REMOVED"
         );
       });
+
+      await this.logMessage(
+        requestId,
+        "info",
+        "Verifying stealth configuration..."
+      );
+
+      // ADVANCED PRE-NAVIGATION STEALTH VERIFICATION
+      const stealthCheck = await page.evaluate(() => {
+        const checks = {
+          webdriver: typeof navigator.webdriver,
+          automation: window.navigator.webdriver,
+          headless: window.navigator.platform === "HeadlessChrome",
+          phantom: window.callPhantom || window._phantom,
+          puppeteer: window.__puppeteer_evaluation_script__,
+          selenium: window.document.$cdc_asdjflasutopfhvcZLmcfl_,
+          chromeDriver:
+            window.chrome &&
+            window.chrome.runtime &&
+            window.chrome.runtime.onConnect,
+          plugins: navigator.plugins.length,
+          languages: navigator.languages.length,
+          platform: navigator.platform,
+          cookieEnabled: navigator.cookieEnabled,
+          doNotTrack: navigator.doNotTrack,
+          hardwareConcurrency: navigator.hardwareConcurrency,
+          maxTouchPoints: navigator.maxTouchPoints,
+          deviceMemory: navigator.deviceMemory,
+        };
+
+        return {
+          passed:
+            checks.webdriver === "undefined" &&
+            !checks.automation &&
+            !checks.headless &&
+            !checks.phantom &&
+            !checks.puppeteer &&
+            !checks.selenium &&
+            checks.plugins >= 3 &&
+            checks.languages >= 1,
+          details: checks,
+        };
+      });
+
+      if (!stealthCheck.passed) {
+        await this.logMessage(
+          requestId,
+          "warning",
+          "Stealth verification failed, applying additional concealment...",
+          stealthCheck.details
+        );
+
+        // Apply emergency stealth measures
+        await page.evaluateOnNewDocument(() => {
+          // Nuclear option - completely override all detection vectors
+          Object.defineProperty(navigator, "webdriver", {
+            get: () => undefined,
+            enumerable: false,
+            configurable: false,
+          });
+          delete window.navigator.webdriver;
+          delete window.__puppeteer_evaluation_script__;
+          delete window.document.$cdc_asdjflasutopfhvcZLmcfl_;
+          delete window.chrome.runtime;
+
+          // Override Object.getOwnPropertyDescriptor to hide modifications
+          const originalGetOwnPropertyDescriptor =
+            Object.getOwnPropertyDescriptor;
+          Object.getOwnPropertyDescriptor = function (obj, prop) {
+            if (prop === "webdriver") return undefined;
+            return originalGetOwnPropertyDescriptor.apply(this, arguments);
+          };
+        });
+      } else {
+        await this.logMessage(
+          requestId,
+          "info",
+          "✅ Stealth verification passed - proceeding with maximum stealth"
+        );
+      }
 
       await this.logMessage(requestId, "info", "Navigating to Garena Shop...");
 
       // Check cancellation before navigation
       await this.checkCancellation(requestId);
 
-      // Mimic real user browsing behavior - visit a common site first (optional)
-      await this.simulateRealUserBrowsing(page, requestId);
+      // Advanced real user simulation with multiple navigation patterns
+      await this.simulateAdvancedUserBrowsing(page, requestId);
 
+      // Navigate with maximum stealth
       await page.goto("https://shop.garena.my/?app=100067&channel=202953", {
         waitUntil: "networkidle2",
-        timeout: 30000,
+        timeout: 45000, // Increased timeout
       });
+
+      // IMMEDIATE CAPTCHA DETECTION AND RESPONSE
+      await this.logMessage(
+        requestId,
+        "info",
+        "Checking for CAPTCHA challenges..."
+      );
+
+      const captchaDetected = await page.evaluate(() => {
+        // Comprehensive CAPTCHA detection
+        const captchaSelectors = [
+          'iframe[src*="recaptcha"]',
+          ".g-recaptcha",
+          ".recaptcha-checkbox",
+          "#recaptcha",
+          "[data-sitekey]",
+          ".captcha",
+          'iframe[src*="hcaptcha"]',
+          ".h-captcha",
+          ".cf-challenge-form",
+          '[id*="captcha"]',
+          '[class*="captcha"]',
+          'canvas[width="300"][height="150"]', // Common puzzle captcha
+          ".slide-verify", // Slide puzzle
+          'img[alt*="captcha"]',
+          'img[src*="captcha"]',
+        ];
+
+        const textPatterns = [
+          /please complete.*security check/i,
+          /verify.*human/i,
+          /prove.*not.*robot/i,
+          /security.*challenge/i,
+          /slide.*complete/i,
+          /puzzle/i,
+          /captcha/i,
+          /verification/i,
+        ];
+
+        // Check for CAPTCHA elements
+        for (const selector of captchaSelectors) {
+          if (document.querySelector(selector)) {
+            return { detected: true, type: "element", selector };
+          }
+        }
+
+        // Check for CAPTCHA text
+        const bodyText = document.body.innerText || "";
+        for (const pattern of textPatterns) {
+          if (pattern.test(bodyText)) {
+            return {
+              detected: true,
+              type: "text",
+              pattern: pattern.toString(),
+            };
+          }
+        }
+
+        // Check for suspicious redirects or blocked content
+        if (
+          window.location.href.includes("blocked") ||
+          window.location.href.includes("challenge") ||
+          window.location.href.includes("captcha")
+        ) {
+          return { detected: true, type: "url", url: window.location.href };
+        }
+
+        return { detected: false };
+      });
+
+      if (captchaDetected.detected) {
+        const errorMsg = `🚨 CAPTCHA DETECTED: ${captchaDetected.type} - ${
+          captchaDetected.selector ||
+          captchaDetected.pattern ||
+          captchaDetected.url
+        }`;
+        await this.logMessage(requestId, "error", errorMsg);
+
+        // Take screenshot of CAPTCHA for analysis
+        const captchaScreenshotPath = `screenshots/captcha-detected-${requestId}-${Date.now()}.png`;
+        await page.screenshot({ path: captchaScreenshotPath, fullPage: true });
+
+        // Apply additional anti-detection measures and retry
+        await this.applyCaptchaEvasion(page, requestId);
+
+        throw new Error(
+          `CAPTCHA detected despite maximum stealth configuration. Screenshot: ${captchaScreenshotPath}`
+        );
+      } else {
+        await this.logMessage(
+          requestId,
+          "info",
+          "✅ No CAPTCHA detected - stealth successful!"
+        );
+      }
 
       // Take screenshot after navigation
       const navigationScreenshotPath = `screenshots/navigation-${requestId}-${Date.now()}.png`;
@@ -1685,6 +2198,148 @@ class AutomationService {
       );
     } catch (error) {
       // Ignore errors in human behavior simulation
+    }
+  }
+
+  // Advanced user browsing simulation with multiple patterns
+  async simulateAdvancedUserBrowsing(page, requestId) {
+    try {
+      await this.logMessage(
+        requestId,
+        "info",
+        "Simulating advanced user browsing patterns..."
+      );
+
+      // Random pre-visit to establish browsing history
+      const preVisitSites = [
+        "https://www.google.com",
+        "https://www.youtube.com",
+        "https://www.facebook.com",
+        "https://www.twitter.com",
+      ];
+
+      const randomSite =
+        preVisitSites[Math.floor(Math.random() * preVisitSites.length)];
+
+      try {
+        await page.goto(randomSite, {
+          waitUntil: "domcontentloaded",
+          timeout: 10000,
+        });
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 + Math.random() * 2000)
+        );
+
+        // Simulate brief interaction
+        await page.mouse.move(
+          Math.random() * 500 + 100,
+          Math.random() * 500 + 100
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, 500 + Math.random() * 1000)
+        );
+      } catch (error) {
+        // Continue if pre-visit fails
+        await this.logMessage(
+          requestId,
+          "warning",
+          "Pre-visit failed, continuing..."
+        );
+      }
+
+      // Set realistic browser state
+      await page.evaluateOnNewDocument(() => {
+        // Establish realistic browsing session
+        sessionStorage.setItem("session_start", Date.now().toString());
+        sessionStorage.setItem(
+          "page_views",
+          Math.floor(Math.random() * 5 + 1).toString()
+        );
+
+        // Simulate user preferences
+        localStorage.setItem("theme", Math.random() > 0.5 ? "dark" : "light");
+        localStorage.setItem("language", "en-US");
+        localStorage.setItem(
+          "timezone",
+          Intl.DateTimeFormat().resolvedOptions().timeZone
+        );
+        localStorage.setItem("visited_timestamp", Date.now().toString());
+
+        // Simulate realistic referrer
+        Object.defineProperty(document, "referrer", {
+          get: () => "https://www.google.com/search?q=garena+top+up",
+          enumerable: true,
+        });
+      });
+    } catch (error) {
+      await this.logMessage(
+        requestId,
+        "warning",
+        "Advanced browsing simulation failed",
+        { error: error.message }
+      );
+    }
+  }
+
+  // CAPTCHA evasion techniques
+  async applyCaptchaEvasion(page, requestId) {
+    try {
+      await this.logMessage(
+        requestId,
+        "info",
+        "Applying CAPTCHA evasion techniques..."
+      );
+
+      // Method 1: Wait and see if CAPTCHA disappears
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Method 2: Try to refresh the page with different headers
+      await page.setExtraHTTPHeaders({
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-User": "?1",
+        "Sec-Fetch-Dest": "document",
+        "Upgrade-Insecure-Requests": "1",
+        "X-Requested-With": "XMLHttpRequest",
+      });
+
+      // Method 3: Clear any detection cookies
+      await page.evaluate(() => {
+        // Clear suspicious cookies
+        document.cookie.split(";").forEach((cookie) => {
+          const name = cookie.split("=")[0].trim();
+          if (
+            name.includes("bot") ||
+            name.includes("captcha") ||
+            name.includes("challenge")
+          ) {
+            document.cookie =
+              name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+          }
+        });
+      });
+
+      // Method 4: Simulate human-like page interaction
+      await page.mouse.move(
+        Math.random() * 800 + 100,
+        Math.random() * 600 + 100
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await page.mouse.move(
+        Math.random() * 800 + 100,
+        Math.random() * 600 + 100
+      );
+
+      // Method 5: Try reloading with different user agent
+      await page.setUserAgent(
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+      );
+    } catch (error) {
+      await this.logMessage(requestId, "error", "CAPTCHA evasion failed", {
+        error: error.message,
+      });
     }
   }
 
