@@ -62,8 +62,109 @@ class AutomationService {
         );
 
         this.browser = await puppeteer.launch({
-          headless: process.env.HEADLESS !== "false", // Default to headless
-          args: [`--proxy-server=${this.proxyUrl}`, "--no-sandbox"],
+          headless: process.env.HEADLESS !== "false", // Default to headless for VPS
+          args: [
+            `--proxy-server=${this.proxyUrl}`,
+            // LINUX/UBUNTU VPS OPTIMIZED - Maximum Anti-Detection
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-gpu-sandbox",
+            "--disable-software-rasterizer",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-features=TranslateUI",
+            "--disable-features=BlinkGenPropertyTrees",
+            "--disable-ipc-flooding-protection",
+            "--no-first-run",
+            "--no-zygote",
+            "--single-process", // Important for VPS
+            "--disable-extensions",
+            "--disable-plugins",
+            "--disable-images", // Faster loading on VPS
+            // ULTIMATE reCAPTCHA BYPASS - Linux Optimized
+            "--disable-blink-features=AutomationControlled",
+            "--exclude-switches=enable-automation",
+            "--disable-component-extensions-with-background-pages",
+            "--disable-logging",
+            "--disable-plugins-discovery",
+            "--no-default-browser-check",
+            "--no-pings",
+            "--no-service-autorun",
+            "--disable-hang-monitor",
+            "--disable-popup-blocking",
+            "--disable-prompt-on-repost",
+            "--disable-sync",
+            "--disable-translate",
+            "--memory-pressure-off",
+            "--max_old_space_size=4096",
+            "--window-size=1920,1080",
+            // LINUX SPECIFIC OPTIMIZATIONS
+            "--disable-background-networking",
+            "--disable-client-side-phishing-detection",
+            "--disable-domain-reliability",
+            "--disable-features=AudioServiceOutOfProcess",
+            "--disable-background-mode",
+            "--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer",
+            "--disable-features=UserActivationSameOriginVisibility",
+            "--disable-features=AutofillShowTypePredictions",
+            "--disable-features=CSSContainerQueries",
+            "--disable-component-update",
+            "--disable-breakpad",
+            "--disable-crash-reporter",
+            "--disable-features=site-per-process",
+            "--metrics-recording-only",
+            "--no-report-upload",
+            "--safebrowsing-disable-auto-update",
+            "--enable-automation=false",
+            "--hide-scrollbars",
+            "--mute-audio",
+            "--disable-accelerated-2d-canvas",
+            "--log-level=3",
+            "--disable-dev-tools",
+            "--disable-device-discovery-notifications",
+            // ADVANCED LINUX ANTI-DETECTION
+            "--use-gl=disabled",
+            "--disable-gl-drawing-for-tests",
+            "--disable-canvas-aa",
+            "--disable-3d-apis",
+            "--disable-accelerated-video-decode",
+            "--disable-accelerated-mjpeg-decode",
+            "--disable-app-list-dismiss-on-blur",
+            "--disable-default-apps",
+            "--disable-web-security",
+            "--ignore-certificate-errors",
+            "--ignore-ssl-errors",
+            "--allow-running-insecure-content",
+            "--ignore-certificate-errors-spki-list",
+            "--ignore-ssl-errors-list",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-features=VizDisplayCompositor",
+            "--run-all-compositor-stages-before-draw",
+            "--disable-new-content-rendering-timeout",
+            // AGGRESSIVE FINGERPRINT MASKING
+            "--user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'",
+            "--disable-features=WebRtcHideLocalIpsWithMdns",
+            "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
+            "--disable-webrtc-multiple-routes",
+            "--disable-webrtc-hw-decoding",
+            "--disable-webrtc-hw-encoding",
+          ],
+          defaultViewport: { width: 1920, height: 1080 },
+          timeout: 120000, // Increased timeout for VPS
+          ignoreDefaultArgs: [
+            "--enable-automation",
+            "--enable-blink-features=AutomationControlled",
+            "--disable-extensions",
+            "--disable-default-apps",
+            "--disable-component-extensions-with-background-pages",
+          ],
+          ignoreHTTPSErrors: true,
+          executablePath: process.env.CHROME_EXECUTABLE_PATH || undefined, // Allow custom Chrome path
         });
 
         LogService.log("info", "Browser initialized with proxy-chain");
@@ -223,9 +324,9 @@ class AutomationService {
         });
       });
 
-      // Set MOST REALISTIC user agent to mimic actual residential user browser
+      // Set LINUX USER AGENT for Ubuntu VPS environment
       await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
       );
 
       // Set realistic viewport
@@ -238,7 +339,7 @@ class AutomationService {
         isMobile: false,
       });
 
-      // Add MOST REALISTIC headers to mimic actual residential user
+      // Add LINUX-OPTIMIZED headers for Ubuntu VPS
       await page.setExtraHTTPHeaders({
         "Accept-Language": "en-US,en;q=0.9,ms;q=0.8,zh;q=0.7",
         Accept:
@@ -253,15 +354,15 @@ class AutomationService {
         "Sec-Ch-Ua":
           '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
         "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": '"Windows"',
-        "Sec-Ch-Ua-Platform-Version": '"15.0.0"',
+        "Sec-Ch-Ua-Platform": '"Linux"', // Changed to Linux
+        "Sec-Ch-Ua-Platform-Version": '"6.8.0"', // Ubuntu version
         "Upgrade-Insecure-Requests": "1",
         DNT: "1",
         "X-Forwarded-For": "192.168.1.100", // Local IP simulation
         "X-Real-IP": "203.115.77.164", // Malaysian IP simulation
       });
 
-      // ULTIMATE Anti-Detection - Maximum Stealth Configuration
+      // ULTIMATE Anti-Detection - Ubuntu VPS Optimized Configuration
       await page.evaluateOnNewDocument(() => {
         // COMPLETELY REMOVE ALL AUTOMATION TRACES
         Object.defineProperty(navigator, "webdriver", {
@@ -285,10 +386,25 @@ class AutomationService {
           });
         }
 
-        // Advanced plugin spoofing with realistic data
+        // LINUX SPECIFIC - Platform simulation
+        Object.defineProperty(navigator, "platform", {
+          get: () => "Linux x86_64",
+        });
+
+        Object.defineProperty(navigator, "userAgent", {
+          get: () =>
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        });
+
+        Object.defineProperty(navigator, "appVersion", {
+          get: () =>
+            "5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        });
+
+        // Advanced plugin spoofing for Linux
         Object.defineProperty(navigator, "plugins", {
           get: () => ({
-            length: 5,
+            length: 3,
             0: {
               name: "Chrome PDF Plugin",
               description: "Portable Document Format",
@@ -307,18 +423,6 @@ class AutomationService {
               filename: "internal-nacl-plugin",
               length: 2,
             },
-            3: {
-              name: "WebKit built-in PDF",
-              description: "Portable Document Format",
-              filename: "WebKit built-in PDF",
-              length: 1,
-            },
-            4: {
-              name: "Microsoft Edge PDF Viewer",
-              description: "Portable Document Format",
-              filename: "edge-pdf-viewer",
-              length: 1,
-            },
             refresh: () => {},
             namedItem: (name) => null,
             item: (index) => null,
@@ -327,10 +431,10 @@ class AutomationService {
           configurable: true,
         });
 
-        // Advanced mimeTypes spoofing
+        // Linux mimeTypes
         Object.defineProperty(navigator, "mimeTypes", {
           get: () => ({
-            length: 4,
+            length: 3,
             0: {
               type: "application/pdf",
               suffixes: "pdf",
@@ -349,23 +453,17 @@ class AutomationService {
               description: "Native Client Executable",
               enabledPlugin: navigator.plugins[2],
             },
-            3: {
-              type: "application/x-pnacl",
-              suffixes: "",
-              description: "Portable Native Client Executable",
-              enabledPlugin: navigator.plugins[2],
-            },
           }),
           enumerable: true,
           configurable: true,
         });
 
-        // Enhanced language simulation
+        // Linux languages
         Object.defineProperty(navigator, "languages", {
-          get: () => ["en-US", "en", "ms-MY", "zh-CN"],
+          get: () => ["en-US", "en"],
         });
 
-        // Complete Chrome runtime simulation
+        // Complete Chrome runtime simulation for Linux
         window.chrome = {
           runtime: {
             onConnect: undefined,
@@ -406,39 +504,10 @@ class AutomationService {
           },
           app: {
             isInstalled: false,
-            InstallState: {
-              DISABLED: "disabled",
-              INSTALLED: "installed",
-              NOT_INSTALLED: "not_installed",
-            },
-            RunningState: {
-              CANNOT_RUN: "cannot_run",
-              READY_TO_RUN: "ready_to_run",
-              RUNNING: "running",
-            },
-            getDetails: () => ({}),
-            getIsInstalled: () => false,
           },
         };
 
-        // Enhanced permissions with realistic responses
-        const originalQuery = window.navigator.permissions?.query;
-        if (originalQuery) {
-          window.navigator.permissions.query = (parameters) => {
-            const responses = {
-              notifications: { state: "default" },
-              camera: { state: "prompt" },
-              microphone: { state: "prompt" },
-              geolocation: { state: "prompt" },
-              "persistent-storage": { state: "prompt" },
-            };
-            return Promise.resolve(
-              responses[parameters.name] || { state: "prompt" }
-            );
-          };
-        }
-
-        // Advanced screen simulation with realistic variance
+        // Linux screen properties
         const baseWidth = 1920;
         const baseHeight = 1080;
         const variance = Math.floor(Math.random() * 10) - 5;
@@ -456,7 +525,7 @@ class AutomationService {
         });
 
         Object.defineProperty(screen, "availHeight", {
-          get: () => baseHeight - 40 + variance, // Account for taskbar
+          get: () => baseHeight - 30 + variance, // Linux taskbar
         });
 
         Object.defineProperty(screen, "colorDepth", {
@@ -467,7 +536,7 @@ class AutomationService {
           get: () => 24,
         });
 
-        // Advanced connection simulation
+        // Linux connection simulation
         Object.defineProperty(navigator, "connection", {
           get: () => ({
             effectiveType: "4g",
@@ -478,31 +547,22 @@ class AutomationService {
           }),
         });
 
-        // Hardware simulation
+        // Hardware simulation for VPS
         Object.defineProperty(navigator, "hardwareConcurrency", {
-          get: () => 8,
+          get: () => 4, // Typical VPS CPU count
         });
 
         Object.defineProperty(navigator, "deviceMemory", {
-          get: () => 8,
+          get: () => 4, // Typical VPS memory
         });
 
-        // Advanced battery simulation
-        if (navigator.getBattery) {
-          navigator.getBattery = () =>
-            Promise.resolve({
-              level: 0.75 + Math.random() * 0.24,
-              charging: Math.random() > 0.3,
-              chargingTime:
-                Math.random() > 0.5 ? Infinity : 3600 + Math.random() * 7200,
-              dischargingTime: 7200 + Math.random() * 14400,
-              addEventListener: () => {},
-              removeEventListener: () => {},
-            });
-        }
+        // Remove battery API for desktop Linux
+        Object.defineProperty(navigator, "getBattery", {
+          get: () => undefined,
+        });
 
-        // Advanced timezone simulation
-        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        // Linux timezone simulation
+        const timezone = "Asia/Kuala_Lumpur"; // Malaysian timezone
         Object.defineProperty(
           Intl.DateTimeFormat.prototype,
           "resolvedOptions",
@@ -521,7 +581,7 @@ class AutomationService {
           }
         );
 
-        // Realistic canvas fingerprinting
+        // Realistic canvas fingerprinting with Linux signature
         const getContext = HTMLCanvasElement.prototype.getContext;
         HTMLCanvasElement.prototype.getContext = function (type, attributes) {
           const context = getContext.call(this, type, attributes);
@@ -529,11 +589,11 @@ class AutomationService {
             const imageData = context.getImageData;
             context.getImageData = function (...args) {
               const data = imageData.apply(this, args);
-              // Add slight noise to avoid fingerprinting
+              // Add slight noise specific to Linux rendering
               for (let i = 0; i < data.data.length; i += 4) {
-                data.data[i] += Math.floor(Math.random() * 3) - 1;
-                data.data[i + 1] += Math.floor(Math.random() * 3) - 1;
-                data.data[i + 2] += Math.floor(Math.random() * 3) - 1;
+                data.data[i] += Math.floor(Math.random() * 2) - 1;
+                data.data[i + 1] += Math.floor(Math.random() * 2) - 1;
+                data.data[i + 2] += Math.floor(Math.random() * 2) - 1;
               }
               return data;
             };
@@ -541,13 +601,27 @@ class AutomationService {
           return context;
         };
 
+        // Linux WebGL fingerprinting
+        const getParameter = WebGLRenderingContext.prototype.getParameter;
+        WebGLRenderingContext.prototype.getParameter = function (parameter) {
+          if (parameter === 37445) {
+            // UNMASKED_VENDOR_WEBGL
+            return "Mesa/X.org";
+          }
+          if (parameter === 37446) {
+            // UNMASKED_RENDERER_WEBGL
+            return "llvmpipe (LLVM 12.0.0, 256 bits)";
+          }
+          return getParameter.call(this, parameter);
+        };
+
         // Remove automation indicators completely
         delete Object.getPrototypeOf(navigator).webdriver;
 
-        // Advanced toString override to hide all modifications
+        // Advanced toString override
         const originalToString = Function.prototype.toString;
         Function.prototype.toString = function () {
-          if (this === navigator.permissions.query) {
+          if (this === navigator.permissions?.query) {
             return "function query() { [native code] }";
           }
           if (this === HTMLCanvasElement.prototype.getContext) {
@@ -562,41 +636,16 @@ class AutomationService {
           return originalToString.apply(this, arguments);
         };
 
-        // Advanced WebGL fingerprinting protection
-        const getParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function (parameter) {
-          // Spoof common WebGL parameters to avoid fingerprinting
-          if (parameter === 37445) {
-            // UNMASKED_VENDOR_WEBGL
-            return "Intel Inc.";
-          }
-          if (parameter === 37446) {
-            // UNMASKED_RENDERER_WEBGL
-            return "Intel(R) UHD Graphics 630";
-          }
-          return getParameter.call(this, parameter);
-        };
-
-        // Advanced AudioContext fingerprinting protection
-        if (window.AudioContext) {
-          const audioContext = AudioContext.prototype.createOscillator;
-          AudioContext.prototype.createOscillator = function () {
-            const oscillator = audioContext.call(this);
-            const originalStart = oscillator.start;
-            oscillator.start = function (when) {
-              return originalStart.call(this, when + Math.random() * 0.0001);
-            };
-            return oscillator;
-          };
-        }
-
         // Hide automation traces in error stack traces
         Error.prepareStackTrace = function (error, stack) {
           return stack
             .map((frame) => {
               return frame
                 .toString()
-                .replace(/puppeteer|chrome-devtools|webdriver/gi, "browser");
+                .replace(
+                  /puppeteer|chrome-devtools|webdriver|automation/gi,
+                  "browser"
+                );
             })
             .join("\n");
         };
@@ -608,7 +657,6 @@ class AutomationService {
           listener,
           options
         ) {
-          // Add realistic event timestamps and properties
           if (type === "mousemove" || type === "click" || type === "keydown") {
             const wrappedListener = function (event) {
               Object.defineProperty(event, "isTrusted", { get: () => true });
@@ -624,36 +672,44 @@ class AutomationService {
           return originalAddEventListener.call(this, type, listener, options);
         };
 
-        // Completely hide automation detection
+        // Linux window properties
         Object.defineProperty(window, "outerHeight", {
-          get: () => window.innerHeight + Math.floor(Math.random() * 100) + 100,
+          get: () => window.innerHeight + 30, // Linux title bar
         });
 
         Object.defineProperty(window, "outerWidth", {
-          get: () => window.innerWidth + Math.floor(Math.random() * 100) + 100,
+          get: () => window.innerWidth,
         });
 
-        // Advanced stealth - prevent detection through timing attacks
+        // Advanced stealth - prevent timing-based detection
         const originalPerformanceNow = performance.now;
         performance.now = function () {
           return originalPerformanceNow.call(this) + Math.random() * 0.1;
         };
 
-        // Advanced Date simulation to prevent timing-based detection
-        const originalDate = Date;
-        Date = function (...args) {
-          if (args.length === 0) {
-            return new originalDate(originalDate.now() + Math.random() * 1000);
-          }
-          return new originalDate(...args);
-        };
-        Object.setPrototypeOf(Date, originalDate);
-        Object.defineProperty(Date, "prototype", {
-          value: originalDate.prototype,
+        // Remove headless indicators
+        Object.defineProperty(navigator, "maxTouchPoints", {
+          get: () => 0,
         });
 
+        // Linux notifications permission
+        if (navigator.permissions) {
+          const originalQuery = navigator.permissions.query;
+          navigator.permissions.query = function (parameters) {
+            const responses = {
+              notifications: { state: "default" },
+              camera: { state: "prompt" },
+              microphone: { state: "prompt" },
+              geolocation: { state: "prompt" },
+            };
+            return Promise.resolve(
+              responses[parameters.name] || { state: "prompt" }
+            );
+          };
+        }
+
         console.log(
-          "🔒 ULTIMATE STEALTH MODE ACTIVATED - ALL AUTOMATION TRACES REMOVED"
+          "🔒 UBUNTU VPS STEALTH MODE ACTIVATED - ALL AUTOMATION TRACES REMOVED"
         );
       });
 
