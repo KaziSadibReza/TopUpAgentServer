@@ -1,7 +1,11 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const ProxyChain = require("proxy-chain");
 const LogService = require("./LogService");
 const DatabaseService = require("./DatabaseService");
+
+// Use stealth plugin
+puppeteer.use(StealthPlugin());
 
 class AutomationService {
   constructor() {
@@ -61,11 +65,10 @@ class AutomationService {
           headless: process.env.HEADLESS !== "false", // Default to headless
           args: [
             `--proxy-server=${this.proxyUrl}`,
-            // Enhanced anti-detection args
+            // Enhanced stealth args - make browser look completely normal
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
-            "--disable-accelerated-2d-canvas",
             "--no-first-run",
             "--no-zygote",
             "--disable-gpu",
@@ -74,17 +77,14 @@ class AutomationService {
             "--disable-background-timer-throttling",
             "--disable-backgrounding-occluded-windows",
             "--disable-renderer-backgrounding",
-            "--disable-extensions",
-            "--disable-plugins",
-            "--disable-default-apps",
             "--disable-hang-monitor",
             "--disable-popup-blocking",
             "--disable-prompt-on-repost",
             "--disable-sync",
             "--disable-translate",
             "--disable-ipc-flooding-protection",
-            "--window-size=1366,768",
-            // Additional anti-detection
+            "--window-size=1920,1080", // More common resolution
+            // Critical stealth args
             "--disable-blink-features=AutomationControlled",
             "--exclude-switches=enable-automation",
             "--disable-component-extensions-with-background-pages",
@@ -100,10 +100,32 @@ class AutomationService {
             "--force-color-profile=srgb",
             "--memory-pressure-off",
             "--max_old_space_size=4096",
+            // Additional residential user simulation
+            "--disable-extensions-except",
+            "--disable-plugins",
+            "--disable-default-apps",
+            "--enable-font-antialiasing",
+            "--enable-gpu-rasterization",
+            "--enable-oop-rasterization",
+            "--force-device-scale-factor=1",
+            "--high-dpi-support=1",
+            "--ignore-certificate-errors",
+            "--ignore-ssl-errors",
+            "--allow-running-insecure-content",
+            "--disable-background-networking",
+            "--disable-client-side-phishing-detection",
+            "--disable-default-apps",
+            "--disable-domain-reliability",
+            "--disable-features=AudioServiceOutOfProcess",
+            "--disable-background-mode",
           ],
-          defaultViewport: null,
+          defaultViewport: { width: 1920, height: 1080 }, // Set realistic viewport
           timeout: 60000,
-          ignoreDefaultArgs: ["--enable-automation"],
+          ignoreDefaultArgs: [
+            "--enable-automation",
+            "--enable-blink-features=AutomationControlled",
+          ],
+          ignoreHTTPSErrors: true,
         });
 
         LogService.log("info", "Browser initialized with proxy-chain");
@@ -263,75 +285,206 @@ class AutomationService {
         });
       });
 
-      // Set user agent to mimic a real browser
+      // Set user agent to mimic a real residential user browser
       await page.setUserAgent(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
       );
 
-      // Set viewport
-      await page.setViewport({ width: 1366, height: 768 });
+      // Set realistic viewport
+      await page.setViewport({
+        width: 1920,
+        height: 1080,
+        deviceScaleFactor: 1,
+        hasTouch: false,
+        isLandscape: true,
+        isMobile: false,
+      });
 
-      // Add extra headers to appear more human
+      // Add comprehensive headers to mimic real residential user
       await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9,ms;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9,ms;q=0.8,zh;q=0.7",
         Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
+        "Cache-Control": "max-age=0",
         Pragma: "no-cache",
         "Sec-Fetch-Site": "none",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-User": "?1",
         "Sec-Fetch-Dest": "document",
+        "Sec-Ch-Ua":
+          '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
         "Upgrade-Insecure-Requests": "1",
+        DNT: "1",
       });
 
-      // Enhanced anti-detection measures
+      // Enhanced anti-detection measures with realistic browser environment
       await page.evaluateOnNewDocument(() => {
-        // Hide webdriver property
+        // Remove webdriver traces
         Object.defineProperty(navigator, "webdriver", {
           get: () => undefined,
         });
 
-        // Override the plugins property
+        // Add realistic plugins
         Object.defineProperty(navigator, "plugins", {
-          get: () => [1, 2, 3, 4, 5],
+          get: () => ({
+            length: 4,
+            0: {
+              name: "Chrome PDF Plugin",
+              description: "Portable Document Format",
+              filename: "internal-pdf-viewer",
+            },
+            1: {
+              name: "Chrome PDF Viewer",
+              description: "",
+              filename: "mhjfbmdgcfjbbpaeojofohoefgiehjai",
+            },
+            2: {
+              name: "Native Client",
+              description: "",
+              filename: "internal-nacl-plugin",
+            },
+            3: {
+              name: "WebKit built-in PDF",
+              description: "Portable Document Format",
+              filename: "WebKit built-in PDF",
+            },
+          }),
         });
 
-        // Override the languages property
+        // Real languages
         Object.defineProperty(navigator, "languages", {
-          get: () => ["en-US", "en", "ms"],
+          get: () => ["en-US", "en", "ms", "zh"],
         });
 
-        // Override chrome property
+        // Complete Chrome object
         window.chrome = {
-          runtime: {},
-          loadTimes: function () {},
-          csi: function () {},
-          app: {},
+          runtime: {
+            onConnect: undefined,
+            onMessage: undefined,
+            connect: () => {},
+            sendMessage: () => {},
+          },
+          loadTimes: function () {
+            return {
+              requestTime: Date.now() / 1000 - Math.random(),
+              startLoadTime: Date.now() / 1000 - Math.random(),
+              commitLoadTime: Date.now() / 1000 - Math.random(),
+              finishDocumentLoadTime: Date.now() / 1000 - Math.random(),
+              finishLoadTime: Date.now() / 1000 - Math.random(),
+              firstPaintTime: Date.now() / 1000 - Math.random(),
+              firstPaintAfterLoadTime: 0,
+              navigationType: "Other",
+              wasFetchedViaSpdy: false,
+              wasNpnNegotiated: false,
+              npnNegotiatedProtocol: "unknown",
+              wasAlternateProtocolAvailable: false,
+              connectionInfo: "http/1.1",
+            };
+          },
+          csi: function () {
+            return {
+              startE: Date.now(),
+              onloadT: Date.now() + Math.random() * 1000,
+              pageT: Math.random() * 1000,
+              tran: 15,
+            };
+          },
+          app: {
+            isInstalled: false,
+            InstallState: {
+              DISABLED: "disabled",
+              INSTALLED: "installed",
+              NOT_INSTALLED: "not_installed",
+            },
+            RunningState: {
+              CANNOT_RUN: "cannot_run",
+              READY_TO_RUN: "ready_to_run",
+              RUNNING: "running",
+            },
+          },
         };
 
-        // Override permissions
-        const originalQuery = window.navigator.permissions.query;
-        return (window.navigator.permissions.query = (parameters) =>
-          parameters.name === "notifications"
-            ? Promise.resolve({ state: Cypress.minimist.deny })
-            : originalQuery(parameters));
+        // Realistic permissions
+        const originalQuery = window.navigator.permissions?.query;
+        if (originalQuery) {
+          window.navigator.permissions.query = (parameters) => {
+            return parameters.name === "notifications"
+              ? Promise.resolve({ state: "granted" })
+              : originalQuery(parameters);
+          };
+        }
 
-        // Add some randomness to screen properties
+        // Realistic screen properties with slight randomization
         Object.defineProperty(screen, "availHeight", {
-          get: () => 1040 + Math.floor(Math.random() * 10),
+          get: () => 1040 + Math.floor(Math.random() * 20),
         });
 
         Object.defineProperty(screen, "availWidth", {
-          get: () => 1920 + Math.floor(Math.random() * 10),
+          get: () => 1920 + Math.floor(Math.random() * 20),
         });
+
+        Object.defineProperty(screen, "colorDepth", {
+          get: () => 24,
+        });
+
+        Object.defineProperty(screen, "pixelDepth", {
+          get: () => 24,
+        });
+
+        // Add connection information
+        Object.defineProperty(navigator, "connection", {
+          get: () => ({
+            effectiveType: "4g",
+            downlink: 10,
+            rtt: 50,
+            saveData: false,
+          }),
+        });
+
+        // Hardware concurrency
+        Object.defineProperty(navigator, "hardwareConcurrency", {
+          get: () => 8,
+        });
+
+        // Device memory
+        Object.defineProperty(navigator, "deviceMemory", {
+          get: () => 8,
+        });
+
+        // Battery API (if available)
+        if (navigator.getBattery) {
+          navigator.getBattery = () =>
+            Promise.resolve({
+              level: 0.8 + Math.random() * 0.2,
+              charging: Math.random() > 0.5,
+              chargingTime: Infinity,
+              dischargingTime: 3600 + Math.random() * 7200,
+            });
+        }
+
+        // Remove automation indicators
+        delete Object.getPrototypeOf(navigator).webdriver;
+
+        // Override toString methods to hide modifications
+        const originalToString = Function.prototype.toString;
+        Function.prototype.toString = function () {
+          if (this === navigator.permissions.query) {
+            return "function query() { [native code] }";
+          }
+          return originalToString.apply(this, arguments);
+        };
       });
 
       await this.logMessage(requestId, "info", "Navigating to Garena Shop...");
 
       // Check cancellation before navigation
       await this.checkCancellation(requestId);
+
+      // Mimic real user browsing behavior - visit a common site first (optional)
+      await this.simulateRealUserBrowsing(page, requestId);
 
       await page.goto("https://shop.garena.my/?app=100067&channel=202953", {
         waitUntil: "networkidle2",
@@ -346,9 +499,6 @@ class AutomationService {
         "info",
         `Screenshot taken after navigation: ${navigationScreenshotPath}`
       );
-
-      // Check for CAPTCHA/robot verification
-      await this.handleCaptchaIfPresent(page, requestId);
 
       // Add random mouse movements to appear human
       await this.simulateHumanBehavior(page);
@@ -1300,6 +1450,64 @@ class AutomationService {
       );
     } catch (error) {
       // Ignore errors in human behavior simulation
+    }
+  }
+
+  // Method to simulate real user browsing patterns
+  async simulateRealUserBrowsing(page, requestId) {
+    try {
+      await this.logMessage(
+        requestId,
+        "info",
+        "Simulating real user browsing pattern..."
+      );
+
+      // Set some realistic cookies and localStorage
+      await page.evaluateOnNewDocument(() => {
+        // Simulate some realistic localStorage entries
+        localStorage.setItem(
+          "timezone",
+          Intl.DateTimeFormat().resolvedOptions().timeZone
+        );
+        localStorage.setItem("language", navigator.language);
+        localStorage.setItem("visited", Date.now().toString());
+
+        // Add some realistic sessionStorage
+        sessionStorage.setItem("session_start", Date.now().toString());
+        sessionStorage.setItem("user_agent", navigator.userAgent);
+      });
+
+      // Add realistic browsing history simulation
+      await page.evaluate(() => {
+        // Simulate mouse movements and clicks that happened "before"
+        const events = ["mousemove", "click", "scroll", "keydown"];
+        const event = events[Math.floor(Math.random() * events.length)];
+
+        // Simulate that user has been browsing
+        Object.defineProperty(document, "referrer", {
+          get: () => "https://www.google.com/",
+        });
+
+        // Add focus event to make it look like user switched tabs
+        window.dispatchEvent(new Event("focus"));
+      });
+
+      // Small delay to simulate natural browsing
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 + Math.random() * 2000)
+      );
+
+      await this.logMessage(
+        requestId,
+        "info",
+        "Real user simulation completed"
+      );
+    } catch (error) {
+      await this.logMessage(
+        requestId,
+        "warning",
+        `Browsing simulation error: ${error.message}`
+      );
     }
   }
 
