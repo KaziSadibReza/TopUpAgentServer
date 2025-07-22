@@ -46,9 +46,9 @@ class AutomationService {
       LogService.log("info", "Initializing The Automation...");
       try {
         // SOCKS5 Proxy configuration
-        const proxyServer = "socks5://BK:BK@103.35.108.178:6969";
+        const proxyServer = "socks5://BK:BK@59.153.18.230:1052";
 
-        LogService.log("info", "Using SOCKS5 proxy: 103.35.108.178:6969");
+        LogService.log("info", "Using SOCKS5 proxy: 59.153.18.230:1052");
 
         this.browser = await puppeteer.launch({
           headless: process.env.HEADLESS !== "false", // Default to headless
