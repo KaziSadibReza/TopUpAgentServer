@@ -61,7 +61,7 @@ class AutomationService {
           headless: process.env.HEADLESS !== "false", // Default to headless
           args: [
             `--proxy-server=${this.proxyUrl}`,
-            // Basic security and performance args
+            // Enhanced anti-detection args
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
@@ -84,9 +84,26 @@ class AutomationService {
             "--disable-translate",
             "--disable-ipc-flooding-protection",
             "--window-size=1366,768",
+            // Additional anti-detection
+            "--disable-blink-features=AutomationControlled",
+            "--exclude-switches=enable-automation",
+            "--disable-component-extensions-with-background-pages",
+            "--disable-features=TranslateUI",
+            "--disable-features=BlinkGenPropertyTrees",
+            "--disable-logging",
+            "--disable-plugins-discovery",
+            "--no-default-browser-check",
+            "--no-pings",
+            "--no-service-autorun",
+            "--password-store=basic",
+            "--use-mock-keychain",
+            "--force-color-profile=srgb",
+            "--memory-pressure-off",
+            "--max_old_space_size=4096",
           ],
           defaultViewport: null,
           timeout: 60000,
+          ignoreDefaultArgs: ["--enable-automation"],
         });
 
         LogService.log("info", "Browser initialized with proxy-chain");
@@ -248,21 +265,66 @@ class AutomationService {
 
       // Set user agent to mimic a real browser
       await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
       );
 
       // Set viewport
       await page.setViewport({ width: 1366, height: 768 });
 
-      // Add extra headers
+      // Add extra headers to appear more human
       await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Language": "en-US,en;q=0.9,ms;q=0.8",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-User": "?1",
+        "Sec-Fetch-Dest": "document",
+        "Upgrade-Insecure-Requests": "1",
       });
 
-      // Hide webdriver property
+      // Enhanced anti-detection measures
       await page.evaluateOnNewDocument(() => {
+        // Hide webdriver property
         Object.defineProperty(navigator, "webdriver", {
           get: () => undefined,
+        });
+
+        // Override the plugins property
+        Object.defineProperty(navigator, "plugins", {
+          get: () => [1, 2, 3, 4, 5],
+        });
+
+        // Override the languages property
+        Object.defineProperty(navigator, "languages", {
+          get: () => ["en-US", "en", "ms"],
+        });
+
+        // Override chrome property
+        window.chrome = {
+          runtime: {},
+          loadTimes: function () {},
+          csi: function () {},
+          app: {},
+        };
+
+        // Override permissions
+        const originalQuery = window.navigator.permissions.query;
+        return (window.navigator.permissions.query = (parameters) =>
+          parameters.name === "notifications"
+            ? Promise.resolve({ state: Cypress.minimist.deny })
+            : originalQuery(parameters));
+
+        // Add some randomness to screen properties
+        Object.defineProperty(screen, "availHeight", {
+          get: () => 1040 + Math.floor(Math.random() * 10),
+        });
+
+        Object.defineProperty(screen, "availWidth", {
+          get: () => 1920 + Math.floor(Math.random() * 10),
         });
       });
 
@@ -285,6 +347,12 @@ class AutomationService {
         `Screenshot taken after navigation: ${navigationScreenshotPath}`
       );
 
+      // Check for CAPTCHA/robot verification
+      await this.handleCaptchaIfPresent(page, requestId);
+
+      // Add random mouse movements to appear human
+      await this.simulateHumanBehavior(page);
+
       await this.logMessage(
         requestId,
         "info",
@@ -306,15 +374,43 @@ class AutomationService {
       await this.checkCancellation(requestId);
 
       await this.logMessage(requestId, "info", "Entering Player ID...");
-      // Type the Player ID into the input field
-      await page.type(
-        'input[placeholder="Please enter player ID here"]',
-        playerId
+
+      // Human-like typing with random delays
+      const playerIdField = 'input[placeholder="Please enter player ID here"]';
+      await page.click(playerIdField);
+      await new Promise((resolve) =>
+        setTimeout(resolve, 500 + Math.random() * 500)
       );
 
+      // Clear field and type with human-like speed
+      await page.keyboard.down("Control");
+      await page.keyboard.press("KeyA");
+      await page.keyboard.up("Control");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Type each character with random delays
+      for (let i = 0; i < playerId.length; i++) {
+        await page.keyboard.type(playerId[i]);
+        await new Promise((resolve) =>
+          setTimeout(resolve, 100 + Math.random() * 200)
+        );
+      }
+
       await this.logMessage(requestId, "info", "Clicking Login button...");
+
+      // Add random mouse movement before clicking
+      await page.mouse.move(Math.random() * 100, Math.random() * 100);
+      await new Promise((resolve) =>
+        setTimeout(resolve, 300 + Math.random() * 300)
+      );
+
       // Click the Login button
       await page.click('button[type="submit"]');
+
+      // Random delay after clicking
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 + Math.random() * 1000)
+      );
 
       await this.logMessage(
         requestId,
@@ -915,6 +1011,295 @@ class AutomationService {
   async checkCancellation(requestId) {
     if (this.isJobCancelled(requestId)) {
       throw new Error("Job cancelled");
+    }
+  }
+
+  // Method to handle CAPTCHA/robot verification
+  async handleCaptchaIfPresent(page, requestId) {
+    try {
+      // Wait a moment for any overlays to appear
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Check for various CAPTCHA/verification elements
+      const captchaSelectors = [
+        'iframe[src*="captcha"]',
+        'iframe[src*="recaptcha"]',
+        ".captcha",
+        ".verification",
+        '[data-cy="captcha"]',
+        ".slider-verify",
+        ".puzzle-verify",
+        // Garena specific selectors
+        ".nc_wrapper", // Alibaba CAPTCHA
+        ".nc_scale", // Slider CAPTCHA
+        "#nc_1_n1z", // Specific Garena CAPTCHA ID pattern
+        'div[id*="nc_"]', // Any element with nc_ prefix
+        // Generic verification selectors
+        'div[style*="position: fixed"]', // Modal overlays
+        ".modal-overlay",
+        ".verification-modal",
+      ];
+
+      let captchaFound = false;
+      let captchaType = null;
+      let captchaElement = null;
+
+      // Check for each type of CAPTCHA
+      for (const selector of captchaSelectors) {
+        try {
+          const element = await page.$(selector);
+          if (element) {
+            const isVisible = await page.evaluate((el) => {
+              const style = window.getComputedStyle(el);
+              const rect = el.getBoundingClientRect();
+              return (
+                style.display !== "none" &&
+                style.visibility !== "hidden" &&
+                style.opacity !== "0" &&
+                rect.width > 0 &&
+                rect.height > 0
+              );
+            }, element);
+
+            if (isVisible) {
+              captchaFound = true;
+              captchaType = selector;
+              captchaElement = element;
+              break;
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (captchaFound) {
+        await this.logMessage(
+          requestId,
+          "warning",
+          `CAPTCHA detected: ${captchaType}. Attempting to solve...`
+        );
+
+        // Take screenshot of CAPTCHA
+        const captchaScreenshotPath = `screenshots/captcha-${requestId}-${Date.now()}.png`;
+        await page.screenshot({ path: captchaScreenshotPath, fullPage: true });
+        await this.logMessage(
+          requestId,
+          "info",
+          `CAPTCHA screenshot saved: ${captchaScreenshotPath}`
+        );
+
+        // Attempt to solve based on CAPTCHA type
+        if (captchaType.includes("nc_") || captchaType.includes("slider")) {
+          await this.solveSlideCaptcha(page, requestId, captchaElement);
+        } else {
+          // For other types, wait for manual intervention or retry
+          await this.waitForCaptchaSolution(page, requestId);
+        }
+      } else {
+        await this.logMessage(
+          requestId,
+          "info",
+          "No CAPTCHA detected, proceeding..."
+        );
+      }
+    } catch (error) {
+      await this.logMessage(
+        requestId,
+        "warning",
+        `CAPTCHA detection error: ${error.message}`
+      );
+      // Continue execution even if CAPTCHA detection fails
+    }
+  }
+
+  // Method to solve slide CAPTCHA
+  async solveSlideCaptcha(page, requestId, captchaElement) {
+    try {
+      await this.logMessage(
+        requestId,
+        "info",
+        "Attempting to solve slide CAPTCHA..."
+      );
+
+      // Look for the slider button
+      const sliderSelectors = [
+        ".nc_iconfont.btn_slide",
+        ".slider-button",
+        ".slide-btn",
+        '[class*="slide"]',
+        '[class*="btn"]',
+      ];
+
+      let sliderButton = null;
+      for (const selector of sliderSelectors) {
+        try {
+          const element = await page.$(selector);
+          if (element) {
+            const isVisible = await page.evaluate((el) => {
+              const rect = el.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0;
+            }, element);
+
+            if (isVisible) {
+              sliderButton = element;
+              break;
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (sliderButton) {
+        // Get slider track width
+        const sliderTrack = (await page.$(".nc_scale")) || captchaElement;
+        const trackBox = await sliderTrack.boundingBox();
+        const buttonBox = await sliderButton.boundingBox();
+
+        if (trackBox && buttonBox) {
+          // Calculate slide distance (usually 80-90% of track width)
+          const slideDistance = trackBox.width * 0.85;
+
+          await this.logMessage(
+            requestId,
+            "info",
+            `Sliding CAPTCHA: distance=${slideDistance}px`
+          );
+
+          // Perform human-like slide
+          await page.mouse.move(
+            buttonBox.x + buttonBox.width / 2,
+            buttonBox.y + buttonBox.height / 2
+          );
+          await page.mouse.down();
+
+          // Slide with human-like movement (not perfectly straight)
+          const steps = 20;
+          for (let i = 0; i <= steps; i++) {
+            const progress = i / steps;
+            const x = buttonBox.x + slideDistance * progress;
+            const y =
+              buttonBox.y +
+              buttonBox.height / 2 +
+              Math.sin(progress * Math.PI) * 2; // Add slight curve
+            await page.mouse.move(x, y, { steps: 1 });
+            await new Promise((resolve) =>
+              setTimeout(resolve, 50 + Math.random() * 50)
+            ); // Random delay
+          }
+
+          await page.mouse.up();
+
+          // Wait for verification
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          // Check if CAPTCHA was solved
+          const captchaStillPresent = (await page.$(captchaElement)) !== null;
+          if (!captchaStillPresent) {
+            await this.logMessage(
+              requestId,
+              "info",
+              "✅ CAPTCHA solved successfully!"
+            );
+          } else {
+            await this.logMessage(
+              requestId,
+              "warning",
+              "CAPTCHA may not be fully solved, continuing..."
+            );
+          }
+        }
+      } else {
+        await this.logMessage(requestId, "warning", "Slider button not found");
+      }
+    } catch (error) {
+      await this.logMessage(
+        requestId,
+        "error",
+        `Failed to solve slide CAPTCHA: ${error.message}`
+      );
+    }
+  }
+
+  // Method to wait for CAPTCHA solution (manual or automatic)
+  async waitForCaptchaSolution(page, requestId) {
+    await this.logMessage(
+      requestId,
+      "info",
+      "Waiting for CAPTCHA to be solved (60 seconds timeout)..."
+    );
+
+    const maxWaitTime = 60000; // 60 seconds
+    const checkInterval = 2000; // Check every 2 seconds
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      // Check cancellation
+      await this.checkCancellation(requestId);
+
+      // Check if CAPTCHA is gone
+      const captchaElements = await page.$$(
+        'iframe[src*="captcha"], .captcha, .verification, .nc_wrapper'
+      );
+      const visibleCaptcha = await Promise.all(
+        captchaElements.map((el) =>
+          page.evaluate((element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return (
+              style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              rect.width > 0 &&
+              rect.height > 0
+            );
+          }, el)
+        )
+      );
+
+      if (!visibleCaptcha.some((visible) => visible)) {
+        await this.logMessage(
+          requestId,
+          "info",
+          "✅ CAPTCHA appears to be solved!"
+        );
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, checkInterval));
+    }
+
+    await this.logMessage(
+      requestId,
+      "warning",
+      "CAPTCHA wait timeout reached, continuing with automation..."
+    );
+  }
+
+  // Method to simulate human behavior
+  async simulateHumanBehavior(page) {
+    try {
+      // Random mouse movements
+      const viewport = await page.viewport();
+      const x = Math.random() * viewport.width;
+      const y = Math.random() * viewport.height;
+
+      await page.mouse.move(x, y, { steps: 10 });
+      await new Promise((resolve) =>
+        setTimeout(resolve, 100 + Math.random() * 200)
+      );
+
+      // Random scroll
+      await page.evaluate(() => {
+        window.scrollBy(0, Math.random() * 100 - 50);
+      });
+
+      // Random wait
+      await new Promise((resolve) =>
+        setTimeout(resolve, 500 + Math.random() * 1000)
+      );
+    } catch (error) {
+      // Ignore errors in human behavior simulation
     }
   }
 
