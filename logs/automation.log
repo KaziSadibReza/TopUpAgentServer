@@ -1493,3 +1493,7 @@
 2025-07-22T17:40:09.692Z [INFO]: Socket.IO instance set for AutomationService 
 2025-07-22T17:40:09.698Z [INFO]: Server started on port 3000 
 2025-07-22T17:40:09.733Z [INFO]: Database initialized successfully 
+2025-07-23T09:26:38.735Z [INFO]: Initializing Mobile Browser Simulation... 
+2025-07-23T09:26:39.621Z [INFO]: Mobile browser simulation initialized successfully 
+2025-07-23T09:26:43.195Z [INFO]: Closing browser... 
+2025-07-23T09:26:43.428Z [INFO]: Browser closed 

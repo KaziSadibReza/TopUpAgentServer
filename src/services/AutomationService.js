@@ -1,6 +1,10 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const LogService = require("./LogService");
 const DatabaseService = require("./DatabaseService");
+
+// Apply stealth plugin
+puppeteer.use(StealthPlugin());
 
 class AutomationService {
   constructor() {
@@ -43,35 +47,42 @@ class AutomationService {
 
   async initBrowser() {
     if (!this.browser) {
-      LogService.log("info", "Initializing The Automation...");
+      LogService.log("info", "Initializing Mobile Browser Simulation...");
       try {
         this.browser = await puppeteer.launch({
-          headless: process.env.HEADLESS !== "false", // Default to headless
+          headless: process.env.HEADLESS !== "false", // Default to headless for server
           args: [
+            // MOBILE iOS SIMULATION - iPhone 13 Pro (Bypass reCAPTCHA)
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
-            "--disable-accelerated-2d-canvas",
-            "--no-first-run",
-            "--no-zygote",
-            "--disable-gpu",
+            "--disable-blink-features=AutomationControlled",
             "--disable-web-security",
             "--disable-features=VizDisplayCompositor",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
+            "--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1",
+            "--window-size=375,812", // iPhone 13 Pro screen
+            "--device-scale-factor=3",
+            "--mobile",
+            "--touch-events",
+            "--enable-touch-drag-drop",
+            "--force-device-scale-factor=3",
+            "--disable-gpu", // Server compatibility
+            "--no-first-run",
             "--disable-extensions",
             "--disable-plugins",
             "--disable-default-apps",
             "--disable-hang-monitor",
             "--disable-popup-blocking",
-            "--disable-prompt-on-repost",
-            "--disable-sync",
             "--disable-translate",
-            "--disable-ipc-flooding-protection",
-            "--window-size=1366,768",
           ],
-          defaultViewport: null,
+          defaultViewport: {
+            width: 375,
+            height: 812,
+            deviceScaleFactor: 3,
+            hasTouch: true,
+            isLandscape: false,
+            isMobile: true,
+          },
           timeout: 60000,
         });
 
@@ -81,12 +92,17 @@ class AutomationService {
           this.browser = null;
         });
 
-        LogService.log("info", "Automation initialized successfully");
+        LogService.log(
+          "info",
+          "Mobile browser simulation initialized successfully"
+        );
       } catch (error) {
-        LogService.log("error", "Failed to initialize browser", {
+        LogService.log("error", "Failed to initialize mobile browser", {
           error: error.message,
         });
-        throw new Error(`Browser initialization failed: ${error.message}`);
+        throw new Error(
+          `Mobile browser initialization failed: ${error.message}`
+        );
       }
     }
     return this.browser;
@@ -217,24 +233,125 @@ class AutomationService {
         });
       });
 
-      // Set user agent to mimic a real browser
+      // Set MOBILE USER AGENT for iOS Safari simulation
       await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1"
       );
 
-      // Set viewport
-      await page.setViewport({ width: 1366, height: 768 });
-
-      // Add extra headers
-      await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9",
+      // Set mobile viewport
+      await page.setViewport({
+        width: 375,
+        height: 812,
+        deviceScaleFactor: 3,
+        hasTouch: true,
+        isLandscape: false,
+        isMobile: true,
       });
 
-      // Hide webdriver property
+      // Add MOBILE-OPTIMIZED headers for iOS Safari
+      await page.setExtraHTTPHeaders({
+        "Accept-Language": "en-US,en;q=0.9,ms;q=0.8",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "max-age=0",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Ch-Ua":
+          '"Not_A Brand";v="8", "Chromium";v="120", "Mobile Safari";v="15.6"',
+        "Sec-Ch-Ua-Mobile": "?1",
+        "Sec-Ch-Ua-Platform": '"iOS"',
+      });
+
+      // MOBILE iOS SAFARI SIMULATION - BYPASS reCAPTCHA
       await page.evaluateOnNewDocument(() => {
+        // Remove webdriver traces (essential)
         Object.defineProperty(navigator, "webdriver", {
           get: () => undefined,
         });
+        delete window.navigator.webdriver;
+        delete window.__puppeteer_evaluation_script__;
+
+        // iOS Safari simulation
+        Object.defineProperty(navigator, "platform", {
+          get: () => "iPhone",
+        });
+
+        Object.defineProperty(navigator, "vendor", {
+          get: () => "Apple Computer, Inc.",
+        });
+
+        Object.defineProperty(navigator, "userAgent", {
+          get: () =>
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1",
+        });
+
+        // Mobile-specific properties
+        Object.defineProperty(navigator, "maxTouchPoints", {
+          get: () => 5, // iPhone supports 5-finger touch
+        });
+
+        Object.defineProperty(navigator, "hardwareConcurrency", {
+          get: () => 6, // iPhone 13 Pro has 6 cores
+        });
+
+        Object.defineProperty(navigator, "deviceMemory", {
+          get: () => 6, // iPhone 13 Pro has 6GB RAM
+        });
+
+        // iOS screen properties
+        Object.defineProperty(screen, "width", {
+          get: () => 375,
+        });
+
+        Object.defineProperty(screen, "height", {
+          get: () => 812,
+        });
+
+        // Mobile connection simulation
+        Object.defineProperty(navigator, "connection", {
+          get: () => ({
+            effectiveType: "4g",
+            downlink: 8.2,
+            rtt: 65,
+            saveData: false,
+            type: "cellular",
+          }),
+        });
+
+        // iOS Safari plugins (none)
+        Object.defineProperty(navigator, "plugins", {
+          get: () => ({
+            length: 0,
+            refresh: () => {},
+          }),
+        });
+
+        // Language settings
+        Object.defineProperty(navigator, "languages", {
+          get: () => ["en-US", "en", "ms"], // Include Malay for Malaysia
+        });
+
+        // Touch events support
+        window.TouchEvent = window.TouchEvent || function () {};
+        window.Touch = window.Touch || function () {};
+
+        // Mobile-specific APIs
+        Object.defineProperty(navigator, "standalone", {
+          get: () => false,
+        });
+
+        // Webkit-specific properties
+        window.webkit = {
+          messageHandlers: {},
+        };
+
+        console.log(
+          "📱 iOS Safari mobile simulation activated - reCAPTCHA bypass enabled"
+        );
       });
 
       await this.logMessage(requestId, "info", "Navigating to Garena Shop...");
@@ -274,9 +391,9 @@ class AutomationService {
         playerId
       );
 
-      await this.logMessage(requestId, "info", "Clicking Login button...");
-      // Click the Login button
-      await page.click('button[type="submit"]');
+      await this.logMessage(requestId, "info", "Tapping Login button...");
+      // Mobile tap the Login button
+      await page.tap('button[type="submit"]');
 
       await this.logMessage(
         requestId,
@@ -377,7 +494,7 @@ class AutomationService {
         { timeout: 10000 }
       );
 
-      await page.click(
+      await page.tap(
         "button.inline-flex.items-center.justify-center.gap-1\\.5.rounded-md.border.py-1.text-center.leading-none.transition-colors.border-primary-red.bg-primary-red.text-white.hover\\:bg-primary-red-hover.hover\\:border-primary-red-hover.px-5.text-base.font-bold.h-11.w-full"
       );
 
@@ -406,7 +523,7 @@ class AutomationService {
       }, packageName);
 
       if (packageButton) {
-        await packageButton.click();
+        await packageButton.tap();
         await page.waitForNavigation({ waitUntil: "networkidle2" });
       } else {
         throw new Error(`Package ${packageName} not found on the page`);
@@ -416,7 +533,7 @@ class AutomationService {
       await page.waitForSelector("#VOUCHER_panel", { timeout: 10000 });
 
       // Expand the VOUCHER panel first
-      await page.click('button[data-target="#VOUCHER_panel"]');
+      await page.tap('button[data-target="#VOUCHER_panel"]');
       await page.waitForSelector("#VOUCHER_panel.show", { timeout: 5000 });
 
       // Check cancellation after voucher panel
@@ -426,9 +543,9 @@ class AutomationService {
       const codeType = redimensionCode.split("-")[0]; // Get BDMB or UPBD
 
       if (codeType === "BDMB") {
-        await page.click("#pc_div_659");
+        await page.tap("#pc_div_659");
       } else if (codeType === "UPBD") {
-        await page.click("#pc_div_670");
+        await page.tap("#pc_div_670");
       } else {
         throw new Error(`Unknown code type: ${codeType}`);
       }
@@ -468,8 +585,8 @@ class AutomationService {
       // Check cancellation before submitting
       await this.checkCancellation(requestId);
 
-      // Click the Confirm button
-      await page.click('input[type="submit"][value="Confirm"]');
+      // Mobile tap the Confirm button
+      await page.tap('input[type="submit"][value="Confirm"]');
 
       LogService.log("info", "Waiting for transaction result...");
       // Wait for the next page to load
