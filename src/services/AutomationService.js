@@ -1,22 +1,19 @@
-const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const puppeteer = require("puppeteer-core");
 const LogService = require("./LogService");
 const DatabaseService = require("./DatabaseService");
-
-// Apply stealth plugin
-puppeteer.use(StealthPlugin());
 
 class AutomationService {
   constructor() {
     this.browser = null;
-    this.isRunning = false;
-    this.currentPage = null;
     this.runningJobs = new Map();
-    this.io = null; // Socket.IO instance
+    this.io = null;
 
-    // Code mapping for packages
+    // Bright Data Browser API endpoint
+    this.wsEndpoint =
+      "wss://brd-customer-hl_59d4ef49-zone-freefire_top_automation:o8c8vcn6r76d@brd.superproxy.io:9222";
+
+    // Package mapping
     this.codeMapping = {
-      // BDMB codes
       "BDMB-T-S": "25 Diamond",
       "BDMB-U-S": "50 Diamond",
       "BDMB-J-S": "115 Diamond",
@@ -26,7 +23,6 @@ class AutomationService {
       "BDMB-M-S": "2530 Diamond",
       "BDMB-Q-S": "Weekly Membership",
       "BDMB-S-S": "Monthly Membership",
-      // UPBD codes
       "UPBD-Q-S": "25 Diamond",
       "UPBD-R-S": "50 Diamond",
       "UPBD-G-S": "115 Diamond",
@@ -39,119 +35,50 @@ class AutomationService {
     };
   }
 
-  // Function to get package name from redimension code
   getPackageFromCode(code) {
-    const codePrefix = code.split("-").slice(0, 3).join("-"); // Get BDMB-J-S part
-    return this.codeMapping[codePrefix];
+    return this.codeMapping[code.split("-").slice(0, 3).join("-")];
   }
 
   async initBrowser() {
     if (!this.browser) {
-      LogService.log("info", "Initializing Mobile Browser Simulation...");
-      try {
-        this.browser = await puppeteer.launch({
-          headless: process.env.HEADLESS !== "false", // Default to headless for server
-          args: [
-            // MOBILE iOS SIMULATION - iPhone 13 Pro (Bypass reCAPTCHA)
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-blink-features=AutomationControlled",
-            "--disable-web-security",
-            "--disable-features=VizDisplayCompositor",
-            "--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1",
-            "--window-size=375,812", // iPhone 13 Pro screen
-            "--device-scale-factor=3",
-            "--mobile",
-            "--touch-events",
-            "--enable-touch-drag-drop",
-            "--force-device-scale-factor=3",
-            "--disable-gpu", // Server compatibility
-            "--no-first-run",
-            "--disable-extensions",
-            "--disable-plugins",
-            "--disable-default-apps",
-            "--disable-hang-monitor",
-            "--disable-popup-blocking",
-            "--disable-translate",
-          ],
-          defaultViewport: {
-            width: 375,
-            height: 812,
-            deviceScaleFactor: 3,
-            hasTouch: true,
-            isLandscape: false,
-            isMobile: true,
-          },
-          timeout: 60000,
-        });
-
-        // Add browser disconnect handler
-        this.browser.on("disconnected", () => {
-          LogService.log("warning", "Browser disconnected unexpectedly");
-          this.browser = null;
-        });
-
-        LogService.log(
-          "info",
-          "Mobile browser simulation initialized successfully"
-        );
-      } catch (error) {
-        LogService.log("error", "Failed to initialize mobile browser", {
-          error: error.message,
-        });
-        throw new Error(
-          `Mobile browser initialization failed: ${error.message}`
-        );
-      }
+      this.browser = await puppeteer.connect({
+        browserWSEndpoint: this.wsEndpoint,
+        ignoreHTTPSErrors: true,
+      });
     }
     return this.browser;
   }
 
   async closeBrowser() {
     if (this.browser) {
-      LogService.log("info", "Closing browser...");
       await this.browser.close();
       this.browser = null;
-      LogService.log("info", "Browser closed");
-    }
-  }
-
-  // Helper method to log to both file and database
-  async logMessage(jobId, level, message, metadata = {}) {
-    // Log to file (existing LogService)
-    LogService.log(level, message, metadata);
-
-    // Log to database with error handling
-    try {
-      const job = this.runningJobs.get(jobId);
-      if (DatabaseService.initialized) {
-        await DatabaseService.createAutomationLog({
-          jobId,
-          level,
-          message,
-          playerId: job?.playerId || metadata.playerId,
-          redimensionCode: job?.redimensionCode || metadata.redimensionCode,
-          packageName: job?.packageName || metadata.packageName,
-        });
-      }
-    } catch (error) {
-      LogService.log("warning", "Database logging failed", {
-        error: error.message,
-      });
-      // Continue execution even if database logging fails
     }
   }
 
   async runTopUpAutomation(playerId, redimensionCode, requestId) {
-    if (this.runningJobs.has(requestId)) {
-      throw new Error("Job already running with this request ID");
-    }
+    if (this.runningJobs.has(requestId)) throw new Error("Job already running");
 
     const packageName = this.getPackageFromCode(redimensionCode);
     const startTime = new Date();
+    const jobInfo = {
+      requestId,
+      playerId,
+      redimensionCode,
+      packageName,
+      startTime,
+      status: "running",
+    };
+    this.runningJobs.set(requestId, jobInfo);
 
-    // Create automation result record in database (with error handling)
+    // Log job start
+    LogService.log("info", "Starting Free Fire top-up automation", {
+      requestId,
+      playerId,
+      packageName,
+    });
+
+    // Create database record
     try {
       await DatabaseService.createAutomationResult({
         jobId: requestId,
@@ -162,722 +89,235 @@ class AutomationService {
         startTime,
       });
     } catch (dbError) {
-      await this.logMessage(
-        requestId,
-        "warning",
-        "Database not available, continuing without database logging",
-        {
-          error: dbError.message,
-        }
-      );
+      LogService.log("warning", "Database not available", {
+        error: dbError.message,
+      });
     }
 
-    const jobInfo = {
-      requestId,
-      playerId,
-      redimensionCode,
-      packageName,
-      startTime,
-      status: "running",
-      page: null, // Will store page reference for cancellation
-    };
-
-    this.runningJobs.set(requestId, jobInfo);
-
-    // Emit job started event
-    this.emitJobUpdate("started", jobInfo);
-
-    // Log to both file and database
-    await this.logMessage(
-      requestId,
-      "info",
-      "Starting Free Fire top-up automation...",
-      {
-        playerId,
-        redimensionCode: redimensionCode.substring(0, 10) + "...",
-        requestId,
-        packageName,
-      }
-    );
-
-    let page = null; // Declare page variable for proper cleanup
-
     try {
-      // Check cancellation before starting
-      await this.checkCancellation(requestId);
-
       const browser = await this.initBrowser();
-      page = await browser.newPage();
+      const page = await browser.newPage();
+      jobInfo.page = page;
 
-      // Store page reference in job info for cancellation
-      const currentJob = this.runningJobs.get(requestId);
-      if (currentJob) {
-        currentJob.page = page;
-      }
-
-      // Check cancellation after page creation
-      await this.checkCancellation(requestId);
-
-      // Add page error handlers
-      page.on("error", (error) => {
-        LogService.log("error", "Page error occurred", {
-          error: error.message,
-          requestId,
-        });
-      });
-
-      page.on("pageerror", (error) => {
-        LogService.log("error", "Page script error", {
-          error: error.message,
-          requestId,
-        });
-      });
-
-      // Set MOBILE USER AGENT for iOS Safari simulation
-      await page.setUserAgent(
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1"
-      );
-
-      // Set mobile viewport
-      await page.setViewport({
-        width: 375,
-        height: 812,
-        deviceScaleFactor: 3,
-        hasTouch: true,
-        isLandscape: false,
-        isMobile: true,
-      });
-
-      // Add MOBILE-OPTIMIZED headers for iOS Safari
-      await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9,ms;q=0.8",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "max-age=0",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Ch-Ua":
-          '"Not_A Brand";v="8", "Chromium";v="120", "Mobile Safari";v="15.6"',
-        "Sec-Ch-Ua-Mobile": "?1",
-        "Sec-Ch-Ua-Platform": '"iOS"',
-      });
-
-      // MOBILE iOS SAFARI SIMULATION - BYPASS reCAPTCHA
-      await page.evaluateOnNewDocument(() => {
-        // Remove webdriver traces (essential)
-        Object.defineProperty(navigator, "webdriver", {
-          get: () => undefined,
-        });
-        delete window.navigator.webdriver;
-        delete window.__puppeteer_evaluation_script__;
-
-        // iOS Safari simulation
-        Object.defineProperty(navigator, "platform", {
-          get: () => "iPhone",
-        });
-
-        Object.defineProperty(navigator, "vendor", {
-          get: () => "Apple Computer, Inc.",
-        });
-
-        Object.defineProperty(navigator, "userAgent", {
-          get: () =>
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1",
-        });
-
-        // Mobile-specific properties
-        Object.defineProperty(navigator, "maxTouchPoints", {
-          get: () => 5, // iPhone supports 5-finger touch
-        });
-
-        Object.defineProperty(navigator, "hardwareConcurrency", {
-          get: () => 6, // iPhone 13 Pro has 6 cores
-        });
-
-        Object.defineProperty(navigator, "deviceMemory", {
-          get: () => 6, // iPhone 13 Pro has 6GB RAM
-        });
-
-        // iOS screen properties
-        Object.defineProperty(screen, "width", {
-          get: () => 375,
-        });
-
-        Object.defineProperty(screen, "height", {
-          get: () => 812,
-        });
-
-        // Mobile connection simulation
-        Object.defineProperty(navigator, "connection", {
-          get: () => ({
-            effectiveType: "4g",
-            downlink: 8.2,
-            rtt: 65,
-            saveData: false,
-            type: "cellular",
-          }),
-        });
-
-        // iOS Safari plugins (none)
-        Object.defineProperty(navigator, "plugins", {
-          get: () => ({
-            length: 0,
-            refresh: () => {},
-          }),
-        });
-
-        // Language settings
-        Object.defineProperty(navigator, "languages", {
-          get: () => ["en-US", "en", "ms"], // Include Malay for Malaysia
-        });
-
-        // Touch events support
-        window.TouchEvent = window.TouchEvent || function () {};
-        window.Touch = window.Touch || function () {};
-
-        // Mobile-specific APIs
-        Object.defineProperty(navigator, "standalone", {
-          get: () => false,
-        });
-
-        // Webkit-specific properties
-        window.webkit = {
-          messageHandlers: {},
-        };
-
-        console.log(
-          "📱 iOS Safari mobile simulation activated - reCAPTCHA bypass enabled"
-        );
-      });
-
-      await this.logMessage(requestId, "info", "Navigating to Garena Shop...");
-
-      // Check cancellation before navigation
-      await this.checkCancellation(requestId);
-
+      LogService.log("info", "Navigating to Garena Shop", { requestId });
+      // Navigate to Garena Shop
       await page.goto("https://shop.garena.my/?app=100067&channel=202953", {
         waitUntil: "networkidle2",
         timeout: 30000,
       });
 
-      await this.logMessage(
-        requestId,
-        "info",
-        "Waiting for player ID input field..."
-      );
-
-      // Check cancellation before waiting for elements
-      await this.checkCancellation(requestId);
-
-      // Wait for page to load completely
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
+      LogService.log("info", "Entering Player ID", { requestId, playerId });
+      // Enter Player ID
       await page.waitForSelector(
         'input[placeholder="Please enter player ID here"]',
         { timeout: 15000 }
       );
-
-      // Check cancellation before entering player ID
-      await this.checkCancellation(requestId);
-
-      await this.logMessage(requestId, "info", "Entering Player ID...");
-      // Type the Player ID into the input field
       await page.type(
         'input[placeholder="Please enter player ID here"]',
         playerId
       );
+      await page.click('button[type="submit"]');
 
-      await this.logMessage(requestId, "info", "Tapping Login button...");
-      // Mobile tap the Login button
-      await page.tap('button[type="submit"]');
-
-      await this.logMessage(
-        requestId,
-        "info",
-        "Waiting for user profile to load..."
-      );
-
-      // Check cancellation before waiting for profile
-      await this.checkCancellation(requestId);
-
-      // Wait for the username to appear with better error handling
-      try {
-        await page.waitForSelector(".line-clamp-2.text-sm\\/none.font-bold", {
-          timeout: 15000,
-        });
-      } catch (selectorError) {
-        // Check cancellation before trying alternatives
-        await this.checkCancellation(requestId);
-
-        await this.logMessage(
-          requestId,
-          "warning",
-          "Primary username selector not found, trying alternative..."
-        );
-
-        // Try alternative selectors for username
-        const alternativeSelectors = [
-          ".username",
-          ".user-name",
-          ".player-name",
-          "[data-testid='username']",
-          ".text-sm.font-bold",
-        ];
-
-        let found = false;
-        for (const selector of alternativeSelectors) {
-          // Check cancellation in the loop
-          await this.checkCancellation(requestId);
-
-          try {
-            await page.waitForSelector(selector, { timeout: 3000 });
-            found = true;
-            break;
-          } catch (e) {
-            continue;
-          }
-        }
-
-        if (!found) {
-          throw new Error(
-            "Player username selector not found - page may not have loaded correctly"
-          );
-        }
-      }
-
-      // Check cancellation before getting username
-      await this.checkCancellation(requestId);
-
+      LogService.log("info", "Waiting for profile", { requestId });
+      // Wait for profile
+      await page.waitForSelector(".line-clamp-2.text-sm\\/none.font-bold", {
+        timeout: 15000,
+      });
       const username = await page
-        .$eval(".line-clamp-2.text-sm\\/none.font-bold", (el) => {
-          return el.innerText;
-        })
-        .catch(async () => {
-          // Try alternative extraction if primary fails
-          const alternatives = [
-            ".username",
-            ".user-name",
-            ".player-name",
-            "[data-testid='username']",
-            ".text-sm.font-bold",
-          ];
+        .$eval(".line-clamp-2.text-sm\\/none.font-bold", (el) => el.innerText)
+        .catch(() => "Unknown");
 
-          for (const selector of alternatives) {
-            try {
-              return await page.$eval(selector, (el) => el.innerText);
-            } catch (e) {
-              continue;
-            }
-          }
-          return "Unknown Player";
-        });
-
-      await this.logMessage(requestId, "info", `Player found: ${username}`, {
+      LogService.log("info", "Player found", {
+        requestId,
         username,
+        packageName,
       });
 
-      await this.logMessage(
-        requestId,
-        "info",
-        "Proceeding to top-up selection..."
-      );
-
-      // Check cancellation before proceeding to top-up
-      await this.checkCancellation(requestId);
-
+      LogService.log("info", "Proceeding to top-up selection", { requestId });
+      // Navigate to top-up
       await page.waitForSelector(
         "button.inline-flex.items-center.justify-center.gap-1\\.5.rounded-md.border.py-1.text-center.leading-none.transition-colors.border-primary-red.bg-primary-red.text-white.hover\\:bg-primary-red-hover.hover\\:border-primary-red-hover.px-5.text-base.font-bold.h-11.w-full",
         { timeout: 10000 }
       );
-
-      await page.tap(
+      await page.click(
         "button.inline-flex.items-center.justify-center.gap-1\\.5.rounded-md.border.py-1.text-center.leading-none.transition-colors.border-primary-red.bg-primary-red.text-white.hover\\:bg-primary-red-hover.hover\\:border-primary-red-hover.px-5.text-base.font-bold.h-11.w-full"
       );
+      await page.waitForNavigation({ waitUntil: "networkidle2" });
 
-      await Promise.all([page.waitForNavigation()]);
-
-      // Get the package name from the redimension code
-      const packageName = this.getPackageFromCode(redimensionCode);
-
-      if (!packageName) {
-        throw new Error(`Unknown package code: ${redimensionCode}`);
-      }
-
-      // Wait for the package selection buttons to load
+      // Select package
       await page.waitForSelector(".payment-denom-button", { timeout: 10000 });
-
-      // Click the correct package button
       const packageButton = await page.evaluateHandle((packageName) => {
         const buttons = document.querySelectorAll(".payment-denom-button");
         for (let button of buttons) {
           const nameDiv = button.querySelector("div");
-          if (nameDiv && nameDiv.textContent.trim() === packageName) {
+          if (nameDiv && nameDiv.textContent.trim() === packageName)
             return button;
-          }
         }
         return null;
       }, packageName);
 
-      if (packageButton) {
-        await packageButton.tap();
-        await page.waitForNavigation({ waitUntil: "networkidle2" });
-      } else {
-        throw new Error(`Package ${packageName} not found on the page`);
-      }
+      if (!packageButton) throw new Error(`Package ${packageName} not found`);
 
-      // Wait for payment channel selection page
+      LogService.log("info", "Selecting package", { requestId, packageName });
+      await packageButton.click();
+      await page.waitForNavigation({ waitUntil: "networkidle2" });
+
+      LogService.log("info", "Setting up payment method", { requestId });
+      // Payment method selection
       await page.waitForSelector("#VOUCHER_panel", { timeout: 10000 });
-
-      // Expand the VOUCHER panel first
-      await page.tap('button[data-target="#VOUCHER_panel"]');
+      await page.click('button[data-target="#VOUCHER_panel"]');
       await page.waitForSelector("#VOUCHER_panel.show", { timeout: 5000 });
 
-      // Check cancellation after voucher panel
-      await this.checkCancellation(requestId);
-
-      // Determine which payment method to use based on code type
-      const codeType = redimensionCode.split("-")[0]; // Get BDMB or UPBD
-
+      // Select payment provider
+      const codeType = redimensionCode.split("-")[0];
       if (codeType === "BDMB") {
-        await page.tap("#pc_div_659");
+        await page.click("#pc_div_659");
       } else if (codeType === "UPBD") {
-        await page.tap("#pc_div_670");
-      } else {
-        throw new Error(`Unknown code type: ${codeType}`);
+        await page.click("#pc_div_670");
       }
 
-      // Check cancellation before voucher input
-      await this.checkCancellation(requestId);
-
-      // Wait for the voucher form to load
+      // Enter voucher code
       await page.waitForSelector(
         "input.form-control.text-center.unipin-voucher-textbox.profile-reload-serial1.autotab-serial",
         { timeout: 15000 }
       );
-
-      // Check cancellation before entering voucher
-      await this.checkCancellation(requestId);
-
-      // Fill the serial field with the complete RedimensionCode using keyboard paste
       await page.focus(
         "input.form-control.text-center.unipin-voucher-textbox.profile-reload-serial1.autotab-serial"
       );
-
-      // Clear the field first
       await page.keyboard.down("Control");
       await page.keyboard.press("KeyA");
       await page.keyboard.up("Control");
-
-      // Copy the code to clipboard and paste it
-      await page.evaluate((code) => {
-        navigator.clipboard.writeText(code);
-      }, redimensionCode);
-
-      // Paste using Ctrl+V
+      await page.evaluate(
+        (code) => navigator.clipboard.writeText(code),
+        redimensionCode
+      );
       await page.keyboard.down("Control");
       await page.keyboard.press("KeyV");
       await page.keyboard.up("Control");
 
-      // Check cancellation before submitting
-      await this.checkCancellation(requestId);
+      LogService.log("info", "Taking screenshot before checkout", {
+        requestId,
+      });
+      // Take screenshot before checkout
+      const beforeCheckoutPath = `screenshots/before-checkout-${requestId}-${Date.now()}.png`;
+      await page.screenshot({ path: beforeCheckoutPath, fullPage: true });
 
-      // Mobile tap the Confirm button
-      await page.tap('input[type="submit"][value="Confirm"]');
+      LogService.log("info", "Submitting order", { requestId });
+      // Submit order
+      await page.click('input[type="submit"][value="Confirm"]');
+      await page.waitForNavigation({ waitUntil: "networkidle2" });
 
-      LogService.log("info", "Waiting for transaction result...");
-      // Wait for the next page to load
-      try {
-        await page.waitForNavigation({ waitUntil: "networkidle2" });
+      LogService.log("info", "Taking completion screenshot", { requestId });
+      // Take completion screenshot
+      const completionPath = `screenshots/completion-${requestId}-${Date.now()}.png`;
+      await page.screenshot({ path: completionPath, fullPage: true });
 
-        // Check if there's an error message
-        const errorElement = await page.$(".title-case-0");
-        if (errorElement) {
-          const errorText = await page.evaluate(
-            (el) => el.textContent,
-            errorElement
-          );
-
-          // Check if it's a consumed voucher error
-          if (errorText.includes("Consumed Voucher")) {
-            throw new Error("The voucher code has already been used/consumed!");
-          } else {
-            throw new Error(`Transaction failed: ${errorText}`);
-          }
-        }
-      } catch (navigationError) {
-        // Check if we're still on an error page
-        const currentUrl = page.url();
-        await this.logMessage(requestId, "info", `Current URL: ${currentUrl}`);
-
-        // Additional error checking
-        const errorElement = await page.$(".title-case-0");
-        if (errorElement) {
-          const errorText = await page.evaluate(
-            (el) => el.textContent,
-            errorElement
-          );
-          throw new Error(`Transaction failed: ${errorText}`);
-        }
-      }
-
-      // Take final screenshot
-      const screenshotPath = `screenshots/success-${requestId}-${Date.now()}.png`;
-      await page.screenshot({ path: screenshotPath, fullPage: true });
-
-      // Close page
       await page.close();
 
-      // Calculate duration
       const endTime = new Date();
       const duration = endTime - startTime;
 
-      // Update job status
       jobInfo.status = "completed";
       jobInfo.endTime = endTime;
-      jobInfo.result = {
-        success: true,
-        message: "Top-up completed successfully",
+      jobInfo.result = { success: true, username, packageName, playerId };
+      jobInfo.beforeCheckoutScreenshot = beforeCheckoutPath;
+      jobInfo.completionScreenshot = completionPath;
+
+      LogService.log("info", "Top-up automation completed successfully", {
+        requestId,
         username,
         packageName,
-        playerId,
-        redimensionCode: redimensionCode.substring(0, 10) + "...",
-      };
-      jobInfo.screenshot = screenshotPath;
+        duration,
+      });
 
-      // Emit job completed event
-      this.emitJobUpdate("completed", jobInfo);
-
-      // Update database with error handling
+      // Update database
       try {
         await DatabaseService.updateAutomationResult(requestId, {
           status: "completed",
           endTime,
           duration,
           success: true,
-          screenshotPath,
-          metadata: {
-            username,
-            packageName,
-            browser: "puppeteer",
-          },
+          screenshotPath: completionPath,
         });
       } catch (dbError) {
-        await this.logMessage(
-          requestId,
-          "warning",
-          "Failed to update database result",
-          {
-            error: dbError.message,
-          }
-        );
+        LogService.log("warning", "Failed to update database", {
+          error: dbError.message,
+        });
       }
 
-      await this.logMessage(requestId, "info", "Job marked as completed", {
-        requestId,
-        status: jobInfo.status,
-        endTime: jobInfo.endTime,
-      });
-
-      // Emit job update event
       this.emitJobUpdate("completed", jobInfo);
 
       return {
         success: true,
-        message: "Top-up automation completed successfully",
         result: jobInfo.result,
-        screenshot: screenshotPath,
+        beforeCheckoutScreenshot: beforeCheckoutPath,
+        completionScreenshot: completionPath,
         duration,
         requestId,
         username,
         packageName,
       };
     } catch (error) {
-      // Check if this is a cancellation error
-      if (error.message === "Job cancelled") {
-        await this.logMessage(requestId, "info", "Job cancelled by user", {
-          requestId,
-          playerId,
-        });
+      LogService.log("error", "Top-up automation failed", {
+        requestId,
+        error: error.message,
+        playerId,
+        packageName,
+      });
 
-        // Don't mark as failed if cancelled - job was already marked as cancelled
-        const cancelledJob = this.runningJobs.get(requestId);
-        if (cancelledJob && cancelledJob.status === "cancelled") {
-          // Job is already marked as cancelled, just clean up
-        } else {
-          // Mark as cancelled if not already done
-          const jobInfo = this.runningJobs.get(requestId);
-          if (jobInfo) {
-            jobInfo.status = "cancelled";
-            jobInfo.endTime = new Date();
-            this.emitJobUpdate("cancelled", jobInfo);
-          }
-        }
-      } else {
-        // Handle actual errors (not cancellations)
-        await this.logMessage(
-          requestId,
-          "error",
-          "Mobile Legends automation failed",
-          {
-            error: error.message,
-            requestId,
-            playerId,
-          }
-        );
-
-        // Take error screenshot
-        let errorScreenshotPath = null;
-        try {
-          if (page) {
-            errorScreenshotPath = `screenshots/error-${requestId}-${Date.now()}.png`;
-            await page.screenshot({
-              path: errorScreenshotPath,
-              fullPage: true,
-            });
-            jobInfo.screenshot = errorScreenshotPath;
-          }
-        } catch (screenshotError) {
-          await this.logMessage(
-            requestId,
-            "warning",
-            "Failed to capture error screenshot",
-            {
-              error: screenshotError.message,
-            }
-          );
-        }
-
-        // Calculate duration
-        const endTime = new Date();
-        const duration = endTime - startTime;
-
-        // Update job info
-        jobInfo.status = "failed";
-        jobInfo.endTime = endTime;
-        jobInfo.duration = duration;
-        jobInfo.error = error.message;
-
-        // Update database with error handling
-        try {
-          await DatabaseService.updateAutomationResult(requestId, {
-            status: "failed",
-            endTime,
-            duration,
-            success: false,
-            errorMessage: error.message,
-            screenshotPath: errorScreenshotPath,
-            metadata: {
-              browser: "puppeteer",
-              errorType: error.constructor.name,
-            },
-          });
-        } catch (dbError) {
-          await this.logMessage(
-            requestId,
-            "warning",
-            "Failed to update database error result",
-            {
-              error: dbError.message,
-            }
-          );
-        }
-
-        await this.logMessage(requestId, "info", "Job marked as failed", {
-          requestId,
-          status: jobInfo.status,
-          endTime: jobInfo.endTime,
-          error: error.message,
-        });
-
-        // Clean up old completed jobs from memory
-        this.cleanupCompletedJobs();
-
-        // Emit job update event
-        this.emitJobUpdate("failed", jobInfo);
-
-        throw error;
-      }
-
-      // Update job status
+      const endTime = new Date();
       jobInfo.status = "failed";
       jobInfo.endTime = endTime;
       jobInfo.error = error.message;
 
-      // Emit job failed event
-      this.emitJobUpdate("failed", jobInfo);
-
-      // Update database with error handling
-      try {
-        await DatabaseService.updateAutomationResult(requestId, {
-          status: "failed",
-          endTime,
-          duration,
-          success: false,
-          errorMessage: error.message,
-          screenshotPath: errorScreenshotPath,
-          metadata: {
-            browser: "puppeteer",
-            errorType: error.constructor.name,
-          },
-        });
-      } catch (dbError) {
-        await this.logMessage(
-          requestId,
-          "warning",
-          "Failed to update database error result",
-          {
-            error: dbError.message,
-          }
-        );
-      }
-
-      await this.logMessage(requestId, "info", "Job marked as failed", {
-        requestId,
-        status: jobInfo.status,
-        endTime: jobInfo.endTime,
-        error: error.message,
-      });
-
-      // Clean up old completed jobs from memory
-      this.cleanupCompletedJobs();
-
-      // Emit job update event
-      this.emitJobUpdate("failed", jobInfo);
-
-      throw error;
-    } finally {
-      // Close the page if it exists
-      if (page) {
+      let errorScreenshotPath = null;
+      if (jobInfo.page) {
         try {
-          await page.close();
-        } catch (closeError) {
-          LogService.log("warning", "Failed to close page", {
-            error: closeError.message,
+          errorScreenshotPath = `screenshots/error-${requestId}-${Date.now()}.png`;
+          await jobInfo.page.screenshot({
+            path: errorScreenshotPath,
+            fullPage: true,
+          });
+          await jobInfo.page.close();
+          LogService.log("info", "Error screenshot captured", {
+            requestId,
+            errorScreenshotPath,
+          });
+        } catch (e) {
+          LogService.log("warning", "Failed to capture error screenshot", {
+            requestId,
           });
         }
       }
 
-      // Close the browser after each job
-      await this.closeBrowser();
+      // Update database
+      try {
+        await DatabaseService.updateAutomationResult(requestId, {
+          status: "failed",
+          endTime,
+          duration: endTime - startTime,
+          success: false,
+          errorMessage: error.message,
+          screenshotPath: errorScreenshotPath,
+        });
+      } catch (dbError) {
+        LogService.log("warning", "Failed to update database", {
+          error: dbError.message,
+        });
+      }
 
-      // Clean up running job after delay (keep job info for 5 minutes for status checking)
-      setTimeout(() => {
-        this.runningJobs.delete(requestId);
-      }, 300000); // Keep job info for 5 minutes
+      this.emitJobUpdate("failed", jobInfo);
+      throw error;
+    } finally {
+      await this.closeBrowser();
+      setTimeout(() => this.runningJobs.delete(requestId), 300000);
     }
   }
 
-  // Set Socket.IO instance for real-time updates
   setSocketIO(io) {
     this.io = io;
-    LogService.log("info", "Socket.IO instance set for AutomationService");
   }
 
-  // Emit job status update to connected clients
   emitJobUpdate(eventType, jobData) {
     if (this.io) {
       this.io.to("automation").emit("job-update", {
@@ -885,203 +325,52 @@ class AutomationService {
         job: jobData,
         timestamp: new Date().toISOString(),
       });
-
-      // Also emit updated running jobs list after any job update
-      const runningJobs = this.getRunningJobsForClient();
+      const runningJobs = Array.from(this.runningJobs.values()).filter(
+        (job) => job.status === "running"
+      );
       this.io.to("automation").emit("running-jobs", runningJobs);
     }
   }
 
-  // Get running jobs in a format suitable for client updates
-  getRunningJobsForClient() {
-    // Only return jobs that are actually running or pending (not completed/failed/cancelled)
-    const runningJobs = Array.from(this.runningJobs.values()).filter(
-      (job) => job.status === "running" || job.status === "pending"
-    );
-
-    const jobs = runningJobs.map((job) => ({
-      jobId: job.requestId,
-      requestId: job.requestId, // Include both for compatibility
-      playerId: job.playerId,
-      packageName: job.packageName,
-      status: job.status,
-      startTime: job.startTime,
-      endTime: job.endTime,
-      duration: job.endTime
-        ? job.endTime.getTime() - job.startTime.getTime()
-        : Date.now() - job.startTime.getTime(),
-    }));
-
-    console.log(
-      `AutomationService: Returning ${jobs.length} running jobs out of ${this.runningJobs.size} total jobs`
-    );
-    return jobs;
-  }
-
   async getJobStatus(requestId) {
-    // First check in-memory running jobs
     const job = this.runningJobs.get(requestId);
     if (job) {
-      // Calculate duration properly
-      let duration;
-      if (job.endTime) {
-        duration = job.endTime - job.startTime;
-      } else if (job.status === "running") {
-        duration = Date.now() - job.startTime;
-      } else {
-        // Job finished but endTime not set (shouldn't happen, but safety check)
-        duration = Date.now() - job.startTime;
-      }
-
-      return {
-        status: job.status,
-        requestId: job.requestId,
-        playerId: job.playerId,
-        startTime: job.startTime,
-        endTime: job.endTime,
-        result: job.result,
-        error: job.error,
-        screenshot: job.screenshot,
-        duration: duration,
-      };
+      const duration = job.endTime
+        ? job.endTime.getTime() - job.startTime.getTime()
+        : Date.now() - job.startTime.getTime();
+      return { ...job, duration };
     }
-
-    // If not in memory, check database for completed jobs
-    try {
-      const dbResult = await DatabaseService.getAutomationResult(requestId);
-      if (dbResult) {
-        // Convert database result to expected format
-        let duration = null;
-        if (dbResult.startTime && dbResult.endTime) {
-          duration = new Date(dbResult.endTime) - new Date(dbResult.startTime);
-        }
-
-        return {
-          status: dbResult.status,
-          requestId: dbResult.jobId,
-          playerId: dbResult.playerId,
-          startTime: dbResult.startTime,
-          endTime: dbResult.endTime,
-          result: dbResult.success
-            ? {
-                success: true,
-                message: "Automation completed",
-                packageName: dbResult.packageName,
-              }
-            : null,
-          error: dbResult.errorMessage,
-          screenshot: dbResult.screenshotPath,
-          duration: duration,
-        };
-      }
-    } catch (error) {
-      LogService.log("warning", "Failed to check database for job status", {
-        error: error.message,
-        requestId,
-      });
-    }
-
     return { status: "not_found" };
-  }
-
-  // Helper method to check if a job is cancelled
-  isJobCancelled(requestId) {
-    const job = this.runningJobs.get(requestId);
-    return job && job.status === "cancelled";
-  }
-
-  // Helper method to check cancellation and throw error if cancelled
-  async checkCancellation(requestId) {
-    if (this.isJobCancelled(requestId)) {
-      throw new Error("Job cancelled");
-    }
   }
 
   async cancelJob(requestId) {
     const job = this.runningJobs.get(requestId);
-    if (!job) {
-      return { success: false, message: "Job not found" };
-    }
+    if (!job) return { success: false, message: "Job not found" };
 
     job.status = "cancelled";
     job.endTime = new Date();
-
-    // If the job has a page reference, try to close it
     if (job.page) {
       try {
         await job.page.close();
-        LogService.log("info", "Closed page for cancelled job", { requestId });
-      } catch (error) {
-        LogService.log("warning", "Failed to close page for cancelled job", {
-          requestId,
-          error: error.message,
-        });
-      }
+      } catch (e) {}
     }
-
-    // Emit job cancelled event
     this.emitJobUpdate("cancelled", job);
-
-    LogService.log("info", "Job cancelled", { requestId });
-
-    return { success: true, message: "Job cancelled successfully" };
-  }
-
-  async getStatus() {
-    // Filter to only return actually running jobs (not completed/failed)
-    const actuallyRunningJobs = Array.from(this.runningJobs.values())
-      .filter((job) => job.status === "running" || job.status === "pending")
-      .map((job) => job.requestId);
-
-    return {
-      isRunning: this.isRunning,
-      browserActive: !!this.browser,
-      runningJobs: actuallyRunningJobs,
-      timestamp: new Date().toISOString(),
-    };
+    return { success: true, message: "Job cancelled" };
   }
 
   getRunningJobs() {
-    // Only return jobs that are actually running or pending (not completed/failed/cancelled)
-    const allJobs = Array.from(this.runningJobs.values());
-    const runningJobs = allJobs.filter(
-      (job) => job.status === "running" || job.status === "pending"
+    return Array.from(this.runningJobs.values()).filter(
+      (job) => job.status === "running"
     );
-
-    console.log(
-      `AutomationService: ${runningJobs.length} running jobs out of ${allJobs.length} total jobs`
-    );
-    allJobs.forEach((job) => {
-      console.log(`Job ${job.requestId}: status = ${job.status}`);
-    });
-
-    return runningJobs;
   }
 
-  // Clean up completed jobs from memory (keep only last 10 completed jobs)
-  cleanupCompletedJobs() {
-    const completedJobs = Array.from(this.runningJobs.entries())
-      .filter(
-        ([_, job]) => job.status !== "running" && job.status !== "pending"
-      )
-      .sort(
-        (a, b) =>
-          new Date(b[1].endTime || b[1].startTime) -
-          new Date(a[1].endTime || a[1].startTime)
-      );
-
-    // Keep only the 10 most recent completed jobs
-    if (completedJobs.length > 10) {
-      const jobsToRemove = completedJobs.slice(10);
-      jobsToRemove.forEach(([requestId, _]) => {
-        this.runningJobs.delete(requestId);
-      });
-
-      LogService.log(
-        "info",
-        `Cleaned up ${jobsToRemove.length} old completed jobs`
-      );
-    }
+  async getStatus() {
+    return {
+      isRunning: this.runningJobs.size > 0,
+      browserActive: !!this.browser,
+      runningJobs: this.getRunningJobs().map((job) => job.requestId),
+      timestamp: new Date().toISOString(),
+    };
   }
 }
 
