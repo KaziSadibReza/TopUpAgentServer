@@ -10,7 +10,7 @@ class AutomationService {
 
     // Bright Data Browser API endpoint
     this.wsEndpoint =
-      "wss://brd-customer-hl_59d4ef49-zone-freefire_top_automation:o8c8vcn6r76d@brd.superproxy.io:9222";
+      "wss://brd-customer-hl_59d4ef49-zone-freefire_top_automation-country-bd:o8c8vcn6r76d@brd.superproxy.io:9222";
 
     // Package mapping
     this.codeMapping = {
