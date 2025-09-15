@@ -1,7 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const DatabaseService = require("../services/DatabaseService");
-const AutomationService = require("../services/AutomationService");
+
+// We'll get the automation service instance from the app context
+let automationService = null;
+
+// Function to set the automation service (called from app.js)
+router.setAutomationService = (service) => {
+  automationService = service;
+};
 
 // Get automation statistics
 router.get("/stats", async (req, res) => {
@@ -16,8 +23,17 @@ router.get("/stats", async (req, res) => {
     });
 
     // Get running jobs count from AutomationService
-    const runningJobs = AutomationService.getRunningJobs();
-    const runningCount = runningJobs.length;
+    let runningJobs = [];
+    let runningCount = 0;
+
+    if (automationService) {
+      try {
+        runningJobs = automationService.getRunningJobsForClient();
+        runningCount = runningJobs.length;
+      } catch (error) {
+        console.warn("Failed to get running jobs:", error.message);
+      }
+    }
 
     // Combine stats
     const stats = {
@@ -180,6 +196,76 @@ router.post("/cleanup", async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message,
+    });
+  }
+});
+
+// Clean up screenshots
+router.delete("/screenshots", async (req, res) => {
+  try {
+    console.log("🧹 Screenshot cleanup endpoint called");
+    const fs = require("fs").promises;
+    const path = require("path");
+
+    const screenshotsDir = path.join(__dirname, "../../screenshots");
+    console.log(`📂 Screenshots directory path: ${screenshotsDir}`);
+
+    // Check if screenshots directory exists
+    try {
+      await fs.access(screenshotsDir);
+      console.log("✅ Screenshots directory exists");
+    } catch (error) {
+      console.log("❌ Screenshots directory does not exist:", error.message);
+      return res.json({
+        success: true,
+        deletedCount: 0,
+        message: "Screenshots directory does not exist",
+      });
+    }
+
+    // Read all files in screenshots directory
+    const files = await fs.readdir(screenshotsDir);
+    console.log(
+      `📁 Found ${files.length} total files in directory:`,
+      files.slice(0, 5)
+    ); // Log first 5 files
+
+    const imageFiles = files.filter(
+      (file) =>
+        file.endsWith(".png") || file.endsWith(".jpg") || file.endsWith(".jpeg")
+    );
+    console.log(`🖼️ Found ${imageFiles.length} image files to delete`);
+
+    let deletedCount = 0;
+    const deletedFiles = [];
+
+    // Delete each image file
+    for (const file of imageFiles) {
+      try {
+        const filePath = path.join(screenshotsDir, file);
+        await fs.unlink(filePath);
+        deletedCount++;
+        deletedFiles.push(file);
+        console.log(`🗑️ Deleted screenshot: ${file}`);
+      } catch (error) {
+        console.error(`❌ Failed to delete ${file}:`, error.message);
+      }
+    }
+
+    console.log(`🧹 Screenshot cleanup: Deleted ${deletedCount} files`);
+
+    res.json({
+      success: true,
+      deletedCount,
+      deletedFiles,
+      message: `Deleted ${deletedCount} screenshot files`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("❌ Screenshot cleanup error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
     });
   }
 });

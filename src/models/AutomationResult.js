@@ -14,19 +14,29 @@ const AutomationResult = sequelize.define(
       allowNull: false,
       unique: true,
       index: true,
+      field: "job_id", // Map to snake_case in database
     },
     playerId: {
       type: DataTypes.STRING,
       allowNull: false,
       index: true,
+      field: "player_id", // Map to snake_case in database
     },
     redimensionCode: {
       type: DataTypes.STRING,
       allowNull: false,
+      field: "redimension_code", // Map to snake_case in database
+    },
+    orderId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      index: true,
+      field: "order_id", // Map to snake_case in database
     },
     packageName: {
       type: DataTypes.STRING,
       allowNull: true,
+      field: "package_name", // Map to snake_case in database
     },
     status: {
       type: DataTypes.ENUM(
@@ -44,10 +54,12 @@ const AutomationResult = sequelize.define(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: "start_time", // Map to snake_case in database
     },
     endTime: {
       type: DataTypes.DATE,
       allowNull: true,
+      field: "end_time", // Map to snake_case in database
     },
     duration: {
       type: DataTypes.INTEGER, // Duration in milliseconds
@@ -61,10 +73,12 @@ const AutomationResult = sequelize.define(
     errorMessage: {
       type: DataTypes.TEXT,
       allowNull: true,
+      field: "error_message", // Map to snake_case in database
     },
     screenshotPath: {
       type: DataTypes.STRING,
       allowNull: true,
+      field: "screenshot_path", // Map to snake_case in database
     },
     metadata: {
       type: DataTypes.JSON, // Store additional data like browser info, etc.
@@ -73,6 +87,9 @@ const AutomationResult = sequelize.define(
   },
   {
     tableName: "automation_results",
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
     indexes: [
       {
         fields: ["jobId"],
@@ -91,6 +108,9 @@ const AutomationResult = sequelize.define(
       },
       {
         fields: ["endTime"],
+      },
+      {
+        fields: ["orderId"],
       },
     ],
   }

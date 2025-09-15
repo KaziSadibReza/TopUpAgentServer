@@ -41,8 +41,13 @@ process.on("uncaughtException", (error) => {
 
 // Import routes
 const apiRoutes = require("./routes/api");
-const automationRoutes = require("./routes/automation");
+const automationRoutes = require("./routes/automation-routes");
 const databaseRoutes = require("./routes/database");
+const queueRoutes = require("./routes/queue-routes");
+const resultsRoutes = require("./routes/results-routes");
+const historyRoutes = require("./routes/history-routes");
+const logsRoutes = require("./routes/logs-routes");
+const migrationRoutes = require("./routes/migration-routes");
 
 // Import middleware
 const ApiAuth = require("./middleware/ApiAuth");
@@ -65,10 +70,22 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
+// Rate limiting - More generous limits for WordPress integration
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 5 * 60 * 1000, // 5 minutes window
+  max: 500, // allow 500 requests per 5 minutes (100 per minute)
+  message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Skip rate limiting for local development
+  skip: (req) => {
+    const isLocal =
+      req.ip === "127.0.0.1" ||
+      req.ip === "::1" ||
+      req.ip === "::ffff:127.0.0.1" ||
+      req.connection.remoteAddress === "127.0.0.1";
+    return process.env.NODE_ENV !== "production" && isLocal;
+  },
 });
 app.use("/api/", limiter);
 
@@ -113,7 +130,12 @@ LogService.init(io);
 
 // Initialize AutomationService with socket.io for real-time job updates
 const AutomationService = require("./services/AutomationService");
-AutomationService.setSocketIO(io);
+const automationServiceInstance = new AutomationService();
+automationServiceInstance.setSocketIO(io);
+
+// Set automation service instance in routes
+automationRoutes.setAutomationService(automationServiceInstance);
+databaseRoutes.setAutomationService(automationServiceInstance);
 
 // Health check endpoint (no auth required)
 app.get("/health", (req, res) => {
@@ -148,14 +170,31 @@ app.get("/api/key", (req, res) => {
 // Routes with API authentication
 app.use("/api", ApiAuth.optionalAuthenticate.bind(ApiAuth), apiRoutes);
 app.use(
-  "/automation",
+  "/api/automation",
   ApiAuth.optionalAuthenticate.bind(ApiAuth),
   automationRoutes
 );
 app.use(
-  "/database",
+  "/api/database",
   ApiAuth.optionalAuthenticate.bind(ApiAuth),
   databaseRoutes
+);
+app.use("/api/queue", ApiAuth.optionalAuthenticate.bind(ApiAuth), queueRoutes);
+app.use(
+  "/api/results",
+  ApiAuth.optionalAuthenticate.bind(ApiAuth),
+  resultsRoutes
+);
+app.use(
+  "/api/history",
+  ApiAuth.optionalAuthenticate.bind(ApiAuth),
+  historyRoutes
+);
+app.use("/api/logs", ApiAuth.optionalAuthenticate.bind(ApiAuth), logsRoutes);
+app.use(
+  "/api/migration",
+  ApiAuth.optionalAuthenticate.bind(ApiAuth),
+  migrationRoutes
 );
 
 // Socket.io connection handling
@@ -171,7 +210,7 @@ io.on("connection", (socket) => {
   // Join automation room for real-time updates
   socket.on("join-automation", () => {
     socket.join("automation");
-    const jobs = AutomationService.getRunningJobsForClient();
+    const jobs = automationService.getRunningJobsForClient();
     socket.emit("running-jobs", jobs);
     LogService.log("info", "Client joined automation room", {
       socketId: socket.id,
