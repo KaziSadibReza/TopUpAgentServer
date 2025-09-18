@@ -12,20 +12,26 @@ Every push to the `main` branch will automatically:
 
 ## 🔧 Required GitHub Secrets
 
-To enable automated deployment, configure these secrets in your GitHub repository settings (`Settings > Secrets and variables > Actions`):
+Your repository already has some secrets configured. Here's the complete list needed for deployment:
 
-### Server Access Secrets
-- `HOSTINGER_HOST`: Your Hostinger server IP or hostname
-- `HOSTINGER_USERNAME`: SSH username (usually `root`)
-- `HOSTINGER_SSH_KEY`: Your private SSH key for Hostinger server access
+### ✅ Already Configured Secrets
+- `SSH_KEY`: Your private SSH key for server access ✅
+- `FTP_HOST`: Your Hostinger server hostname/IP ✅  
+- `FTP_USER`: SSH username for server access ✅
+- `FTP_PORT`: FTP port (not used in CI/CD) ✅
 
-### Example Secret Values
+### 🎯 Secrets Usage in CI/CD
+The automated deployment uses:
+- `FTP_HOST` as the server hostname/IP
+- `FTP_USER` as the SSH username  
+- `SSH_KEY` as the private key for authentication
+
+### Current Secret Configuration
 ```
-HOSTINGER_HOST: your-server-ip.com
-HOSTINGER_USERNAME: root
-HOSTINGER_SSH_KEY: -----BEGIN OPENSSH PRIVATE KEY-----
-...your full private key content...
------END OPENSSH PRIVATE KEY-----
+✅ FTP_HOST: Your server hostname (used as SSH host)
+✅ FTP_USER: SSH username (usually 'root')
+✅ SSH_KEY: Private SSH key content
+✅ FTP_PORT: FTP port (31 - not used in deployment)
 ```
 
 ## 📋 Setup Instructions
@@ -49,10 +55,13 @@ ssh-copy-id -i ~/.ssh/id_rsa.pub root@your-server-ip.com
 - Name: `HOSTINGER_SSH_KEY`
 - Value: Contents of your private key file (`~/.ssh/id_rsa`)
 
-### 4. Configure Server Details
-Add these secrets in GitHub:
-- `HOSTINGER_HOST`: Your server IP/hostname
-- `HOSTINGER_USERNAME`: SSH username (usually `root`)
+### 4. Verify Current Secrets
+Your repository already has the required secrets configured:
+- `FTP_HOST`: Server hostname/IP ✅
+- `FTP_USER`: SSH username ✅  
+- `SSH_KEY`: Private SSH key ✅
+
+The CI/CD pipeline is ready to use these existing secrets!
 
 ## 🐳 Docker Registry
 

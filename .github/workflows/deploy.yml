@@ -60,9 +60,9 @@ jobs:
     - name: Deploy to Hostinger Server
       uses: appleboy/ssh-action@v1.0.0
       with:
-        host: ${{ secrets.HOSTINGER_HOST }}
-        username: ${{ secrets.HOSTINGER_USERNAME }}
-        key: ${{ secrets.HOSTINGER_SSH_KEY }}
+        host: ${{ secrets.FTP_HOST }}
+        username: ${{ secrets.FTP_USER }}
+        key: ${{ secrets.SSH_KEY }}
         script: |
           # Navigate to project directory
           cd ~/TopUpAgentServer
