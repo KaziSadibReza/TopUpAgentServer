@@ -71,7 +71,8 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 
 // Configure trust proxy for rate limiting with X-Forwarded-For headers
-app.set("trust proxy", true);
+// Only trust the first proxy (nginx in Docker container)
+app.set("trust proxy", 1);
 
 // Rate limiting - More generous limits for WordPress integration
 const limiter = rateLimit({
