@@ -2,8 +2,17 @@ const express = require("express");
 const router = express.Router();
 const QueueService = require("../services/queue-service");
 
-// Initialize queue service
-const queueService = new QueueService();
+// Initialize queue service (will be updated with automation service instance)
+let queueService = new QueueService();
+
+// Set automation service instance (called from app.js)
+function setAutomationService(automationServiceInstance) {
+  queueService = new QueueService(automationServiceInstance);
+  console.log("🔗 Queue Routes: Updated with global AutomationService instance");
+}
+
+// Export the setter function
+router.setAutomationService = setAutomationService;
 
 /**
  * Add single automation to queue

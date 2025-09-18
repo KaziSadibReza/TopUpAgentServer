@@ -8,11 +8,12 @@ const {
 const { Op } = require("sequelize");
 
 class QueueService extends EventEmitter {
-  constructor() {
+  constructor(automationServiceInstance = null) {
     super();
     this.isProcessing = false;
     this.currentAutomation = null;
     this.processingInterval = null;
+    this.automationServiceInstance = automationServiceInstance; // Store the global automation service instance
     this.initializeDatabase();
     this.startQueueProcessor();
   }
@@ -242,9 +243,16 @@ class QueueService extends EventEmitter {
       // Update status to running
       await this.updateQueueItemStatus(queueItem.id, "running");
 
-      // Import automation service
-      const AutomationService = require("./AutomationService");
-      const automationService = new AutomationService();
+      // Use global automation service instance if available, otherwise create new one
+      let automationService;
+      if (this.automationServiceInstance) {
+        automationService = this.automationServiceInstance;
+        console.log("🔗 Queue Service: Using global AutomationService instance with Socket.IO");
+      } else {
+        const AutomationService = require("./AutomationService");
+        automationService = new AutomationService();
+        console.log("⚠️ Queue Service: Creating new AutomationService instance (no Socket.IO)");
+      }
 
       // Execute automation
       const result = await automationService.runTopUpAutomation(

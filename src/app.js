@@ -140,6 +140,7 @@ automationServiceInstance.setSocketIO(io);
 // Set automation service instance in routes
 automationRoutes.setAutomationService(automationServiceInstance);
 databaseRoutes.setAutomationService(automationServiceInstance);
+queueRoutes.setAutomationService(automationServiceInstance);
 
 // Health check endpoint (no auth required)
 app.get("/health", (req, res) => {

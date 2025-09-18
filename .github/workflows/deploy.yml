@@ -20,18 +20,18 @@ jobs:
           script: |
             # Navigate to project directory
             cd ~/TopUpAgentServer
-            
+
             # Stash any local changes to avoid merge conflicts
             git stash
-            
+
             # Pull latest changes
             git pull origin main
-            
+
             # Stop and rebuild containers
             docker compose down && docker compose up --build -d
-            
+
             # Show running containers
             docker ps
-            
+
             # Show logs for verification
             docker compose logs --tail=20
