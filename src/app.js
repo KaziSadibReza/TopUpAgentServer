@@ -70,6 +70,17 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 
+// Serve screenshots statically
+app.use(
+  "/api/screenshots",
+  express.static(path.join(__dirname, "../screenshots"), {
+    // Add security headers
+    setHeaders: (res, path) => {
+      res.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+    },
+  })
+);
+
 // Configure trust proxy for rate limiting with X-Forwarded-For headers
 // Only trust the first proxy (nginx in Docker container)
 app.set("trust proxy", 1);
