@@ -23,7 +23,8 @@ jobs:
       run: npm ci
     
     - name: Run tests (if any)
-      run: npm test --if-present
+      run: npm test
+      continue-on-error: false
     
     - name: Lint code
       run: npm run lint --if-present
