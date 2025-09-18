@@ -404,7 +404,6 @@ external connections for security reasons.`);
 
     let page = null; // Declare page variable for proper cleanup
     let browser = null;
-    let username = "Unknown Player"; // Declare username variable for error handling
 
     try {
       // Check cancellation before starting
@@ -558,7 +557,7 @@ external connections for security reasons.`);
       // Check cancellation before getting username
       await this.checkCancellation(requestId);
 
-      username = await page
+      const username = await page
         .$eval(".line-clamp-2.text-sm\\/none.font-bold", (el) => {
           return el.innerText;
         })
@@ -874,8 +873,6 @@ external connections for security reasons.`);
             errorMessage: error.message,
             screenshotPath: errorScreenshotPath,
             metadata: {
-              username: username || "Unknown Player",
-              packageName,
               browser: "visual-chrome",
               errorType: error.constructor.name,
             },
