@@ -10,10 +10,12 @@ class AutomationService {
   constructor() {
     // If global instance exists and has Socket.IO, return it
     if (globalAutomationService && globalAutomationService.io) {
-      console.log("🔄 AutomationService: Returning existing global instance with Socket.IO");
+      console.log(
+        "🔄 AutomationService: Returning existing global instance with Socket.IO"
+      );
       return globalAutomationService;
     }
-    
+
     this.browser = null;
     this.isRunning = false;
     this.currentPage = null;
@@ -53,7 +55,7 @@ class AutomationService {
   setSocketIO(io) {
     this.io = io;
     LogService.log("info", "Socket.IO instance set for AutomationService");
-    
+
     // Update global instance
     globalAutomationService = this;
     console.log("🌍 AutomationService: Set as global instance with Socket.IO");

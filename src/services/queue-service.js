@@ -254,7 +254,7 @@ class QueueService extends EventEmitter {
         // Try to get global instance first
         const AutomationService = require("./AutomationService");
         const globalInstance = AutomationService.getGlobalInstance();
-        
+
         if (globalInstance && globalInstance.io) {
           automationService = globalInstance;
           console.log(
