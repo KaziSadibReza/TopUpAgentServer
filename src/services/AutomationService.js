@@ -3,8 +3,17 @@ const axios = require("axios");
 const LogService = require("./LogService");
 const DatabaseService = require("./DatabaseService");
 
+// Global instance for singleton pattern
+let globalAutomationService = null;
+
 class AutomationService {
   constructor() {
+    // If global instance exists and has Socket.IO, return it
+    if (globalAutomationService && globalAutomationService.io) {
+      console.log("🔄 AutomationService: Returning existing global instance with Socket.IO");
+      return globalAutomationService;
+    }
+    
     this.browser = null;
     this.isRunning = false;
     this.currentPage = null;
@@ -34,11 +43,25 @@ class AutomationService {
       "UPBD-N-S": "Weekly Membership",
       "UPBD-P-S": "Monthly Membership",
     };
+
+    // Set this as the global instance if Socket.IO gets set
+    if (!globalAutomationService) {
+      globalAutomationService = this;
+    }
   }
 
   setSocketIO(io) {
     this.io = io;
     LogService.log("info", "Socket.IO instance set for AutomationService");
+    
+    // Update global instance
+    globalAutomationService = this;
+    console.log("🌍 AutomationService: Set as global instance with Socket.IO");
+  }
+
+  // Static method to get global instance
+  static getGlobalInstance() {
+    return globalAutomationService;
   }
 
   // Function to get package name from redimension code

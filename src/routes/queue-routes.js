@@ -8,7 +8,9 @@ let queueService = new QueueService();
 // Set automation service instance (called from app.js)
 function setAutomationService(automationServiceInstance) {
   queueService = new QueueService(automationServiceInstance);
-  console.log("🔗 Queue Routes: Updated with global AutomationService instance");
+  console.log(
+    "🔗 Queue Routes: Updated with global AutomationService instance"
+  );
 }
 
 // Export the setter function

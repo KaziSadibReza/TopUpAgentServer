@@ -247,11 +247,25 @@ class QueueService extends EventEmitter {
       let automationService;
       if (this.automationServiceInstance) {
         automationService = this.automationServiceInstance;
-        console.log("🔗 Queue Service: Using global AutomationService instance with Socket.IO");
+        console.log(
+          "🔗 Queue Service: Using passed AutomationService instance with Socket.IO"
+        );
       } else {
+        // Try to get global instance first
         const AutomationService = require("./AutomationService");
-        automationService = new AutomationService();
-        console.log("⚠️ Queue Service: Creating new AutomationService instance (no Socket.IO)");
+        const globalInstance = AutomationService.getGlobalInstance();
+        
+        if (globalInstance && globalInstance.io) {
+          automationService = globalInstance;
+          console.log(
+            "🌍 Queue Service: Using global AutomationService instance with Socket.IO"
+          );
+        } else {
+          automationService = new AutomationService();
+          console.log(
+            "⚠️ Queue Service: Creating new AutomationService instance (no Socket.IO)"
+          );
+        }
       }
 
       // Execute automation
