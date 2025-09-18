@@ -70,6 +70,9 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 
+// Configure trust proxy for rate limiting with X-Forwarded-For headers
+app.set('trust proxy', true);
+
 // Rate limiting - More generous limits for WordPress integration
 const limiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes window
@@ -210,7 +213,7 @@ io.on("connection", (socket) => {
   // Join automation room for real-time updates
   socket.on("join-automation", () => {
     socket.join("automation");
-    const jobs = automationService.getRunningJobsForClient();
+    const jobs = automationServiceInstance.getRunningJobsForClient();
     socket.emit("running-jobs", jobs);
     LogService.log("info", "Client joined automation room", {
       socketId: socket.id,
