@@ -873,6 +873,8 @@ external connections for security reasons.`);
             errorMessage: error.message,
             screenshotPath: errorScreenshotPath,
             metadata: {
+              username: username || "Unknown Player", // Include username even for failed attempts
+              packageName,
               browser: "visual-chrome",
               errorType: error.constructor.name,
             },
