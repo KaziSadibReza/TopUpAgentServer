@@ -1,7 +1,7 @@
 services:
   # Your Node.js automation server
   automation-server:
-    build: .
+    image: ghcr.io/kazisadibreza/topupagent-server:latest
     container_name: automation-server
     ports:
       - "3000:3000"
@@ -9,6 +9,7 @@ services:
       - ./screenshots:/app/screenshots
       - ./logs:/app/logs
       - ./data:/app/data
+      - ./database:/app/database
     environment:
       - NODE_ENV=production
       - HEADLESS=false

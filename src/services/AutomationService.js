@@ -355,6 +355,8 @@ external connections for security reasons.`);
       startTime,
       status: "running",
       page: null, // Will store page reference for cancellation
+      orderId: queueItemData?.order_id || null,
+      queueId: queueItemData?.id || null,
     };
 
     this.runningJobs.set(requestId, jobInfo);
@@ -904,11 +906,22 @@ external connections for security reasons.`);
   // Emit job status update to connected clients
   emitJobUpdate(eventType, jobData) {
     if (this.io) {
-      this.io.to("automation").emit("job-update", {
+      const eventPayload = {
         type: eventType,
         job: jobData,
         timestamp: new Date().toISOString(),
+      };
+
+      // Log Socket.IO event for debugging
+      console.log(`📡 Socket.IO Event: job-update (${eventType})`, {
+        requestId: jobData.requestId,
+        orderId: jobData.orderId,
+        queueId: jobData.queueId,
+        playerId: jobData.playerId,
+        status: jobData.status,
       });
+
+      this.io.to("automation").emit("job-update", eventPayload);
 
       // Also emit updated running jobs list after any job update
       const runningJobs = this.getRunningJobsForClient();
