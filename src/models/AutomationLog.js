@@ -12,7 +12,6 @@ const AutomationLog = sequelize.define(
     jobId: {
       type: DataTypes.STRING,
       allowNull: false,
-      index: true,
     },
     level: {
       type: DataTypes.ENUM("info", "success", "warning", "error"),
@@ -31,7 +30,6 @@ const AutomationLog = sequelize.define(
     playerId: {
       type: DataTypes.STRING,
       allowNull: true,
-      index: true,
     },
     redimensionCode: {
       type: DataTypes.STRING,
