@@ -585,6 +585,12 @@ external connections for security reasons.`);
         username,
       });
 
+      // Store username in jobInfo for error handling
+      const jobInfo = this.runningJobs.get(requestId);
+      if (jobInfo) {
+        jobInfo.capturedUsername = username;
+      }
+
       await this.logMessage(
         requestId,
         "info",
@@ -863,6 +869,9 @@ external connections for security reasons.`);
         jobInfo.duration = duration;
         jobInfo.error = error.message;
 
+        // Get captured username from jobInfo, fallback to parameter or default
+        const capturedUsername = jobInfo.capturedUsername || username || "Unknown Player";
+
         // Update database with error handling
         try {
           await DatabaseService.updateAutomationResult(requestId, {
@@ -873,7 +882,7 @@ external connections for security reasons.`);
             errorMessage: error.message,
             screenshotPath: errorScreenshotPath,
             metadata: {
-              username: username || "Unknown Player", // Include username even for failed attempts
+              username: capturedUsername, // Use captured username even for failed attempts
               packageName,
               browser: "visual-chrome",
               errorType: error.constructor.name,
