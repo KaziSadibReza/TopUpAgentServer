@@ -1,7 +1,7 @@
 services:
   # Your Node.js automation server
   automation-server:
-    image: ghcr.io/kazisadibreza/topupagent-server:latest
+    build: .
     container_name: automation-server
     ports:
       - "3000:3000"
@@ -9,7 +9,6 @@ services:
       - ./screenshots:/app/screenshots
       - ./logs:/app/logs
       - ./data:/app/data
-      - ./database:/app/database
     environment:
       - NODE_ENV=production
       - HEADLESS=false
@@ -60,18 +59,18 @@ services:
     restart: unless-stopped
 
   # Nginx Proxy Manager
-  # nginx:
-  #   image: "jc21/nginx-proxy-manager:latest"
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "81:81"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx-data:/data
-  #     - ./nginx-letsencrypt:/etc/letsencrypt
-  #   networks:
-  #     - automation-network
+  nginx:
+    image: "jc21/nginx-proxy-manager:latest"
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    volumes:
+      - ./nginx-data:/data
+      - ./nginx-letsencrypt:/etc/letsencrypt
+    networks:
+      - automation-network
 
 networks:
   automation-network:
