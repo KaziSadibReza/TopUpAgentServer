@@ -71,7 +71,7 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 
 // Configure trust proxy for rate limiting with X-Forwarded-For headers
-app.set('trust proxy', true);
+app.set("trust proxy", true);
 
 // Rate limiting - More generous limits for WordPress integration
 const limiter = rateLimit({
