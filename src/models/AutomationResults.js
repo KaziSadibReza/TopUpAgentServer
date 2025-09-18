@@ -24,6 +24,16 @@ const AutomationResults = sequelize.define(
       allowNull: true,
       field: "redimension_code",
     },
+    packageName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "package_name",
+    },
+    orderId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "order_id",
+    },
     status: {
       type: DataTypes.STRING,
       allowNull: false,

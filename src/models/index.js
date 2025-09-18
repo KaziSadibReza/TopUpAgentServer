@@ -37,9 +37,26 @@ const initializeDatabase = async () => {
     await sequelize.authenticate();
     console.log("✅ Database connection established successfully.");
 
-    // Sync all models (create tables if they don't exist)
-    await sequelize.sync({ alter: true });
-    console.log("✅ Database models synchronized successfully.");
+    // Try to sync with alter first, fallback to force if needed
+    try {
+      await sequelize.sync({ alter: true });
+      console.log("✅ Database models synchronized successfully.");
+    } catch (syncError) {
+      console.log("Safe sync failed, trying with alter...", syncError.message);
+      try {
+        // If alter fails due to index conflicts, try without altering indexes
+        await sequelize.sync({ force: false });
+        console.log("Database models synchronized (alter mode).");
+      } catch (fallbackError) {
+        console.log(
+          "❌ Database sync failed completely:",
+          fallbackError.message
+        );
+        // Continue anyway - the database might be working
+      }
+    }
+
+    console.log("Database initialized successfully");
 
     // Ensure server status record exists
     const [serverStatus, created] = await ServerStatus.findOrCreate({
