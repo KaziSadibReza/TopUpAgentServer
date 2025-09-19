@@ -525,7 +525,8 @@ class QueueService extends EventEmitter {
           },
         });
 
-        const delay = priorityCount > 0 ? 5000 : 15000; // 5s for priority, 15s for normal
+        // Longer delay to ensure proper browser cleanup between automations
+        const delay = priorityCount > 0 ? 10000 : 20000; // 10s for priority, 20s for normal
 
         setTimeout(() => {
           this.processQueue();
