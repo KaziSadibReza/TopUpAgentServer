@@ -24,7 +24,7 @@ services:
 
   # Visual Chrome container with VNC access
   chromium-browser:
-    image: lscr.io/linuxserver/chromium:latest
+    image: lscr.io/linuxserver/chromium:kasm
     container_name: chromium-browser
     environment:
       - PUID=1000
