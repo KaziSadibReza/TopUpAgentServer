@@ -42,21 +42,20 @@ services:
     ports:
       - "4100:3000" # noVNC web interface - VISUAL BROWSER HERE!
       - "4101:3001" # VNC port (optional)
-      - "127.0.0.1:9222:9222" # Chrome DevTools Protocol (direct access)
     shm_size: "2gb"
     restart: unless-stopped
     networks:
       - automation-network
 
   # Proxy to make Chrome debugging port accessible from other containers
-  chrome-proxy:
-    image: alpine/socat
-    container_name: chrome-proxy
-    command: TCP-LISTEN:9223,fork,reuseaddr TCP:127.0.0.1:9222
-    network_mode: "container:chromium-browser"
-    depends_on:
-      - chromium-browser
-    restart: unless-stopped
+  # chrome-proxy:
+  #   image: alpine/socat
+  #   container_name: chrome-proxy
+  #   command: TCP-LISTEN:9223,fork,reuseaddr TCP:127.0.0.1:9222
+  #   network_mode: "container:chromium-browser"
+  #   depends_on:
+  #     - chromium-browser
+  #   restart: unless-stopped
 
   # Nginx Proxy Manager
   nginx:
