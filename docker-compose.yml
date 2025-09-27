@@ -24,7 +24,7 @@ services:
 
   # Visual Chrome container with VNC access
   chromium-browser:
-    image: linuxserver/chromium:latest
+    image:image: lscr.io/linuxserver/chromium:130.0.6723.58-ls240
     container_name: chromium-browser
     environment:
       - PUID=1000
@@ -42,7 +42,7 @@ services:
     ports:
       - "4100:3000" # noVNC web interface - VISUAL BROWSER HERE!
       - "4101:3001" # VNC port (optional)
-      - "9222:9222" # Chrome DevTools Protocol (direct access)
+      - "127.0.0.1:9222:9222" # Chrome DevTools Protocol (direct access)
     shm_size: "2gb"
     restart: unless-stopped
     networks:
