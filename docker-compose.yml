@@ -35,8 +35,7 @@ services:
       - NO_DECOR=1
       - DBUS_SESSION_BUS_ADDRESS=""
       # Proper Chrome CLI arguments for debugging
-      - CHROME_CLI=--no-sandbox --disable-gpu --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --disable-web-security --start-maximized --disable-dev-shm-usage --no-first-run --ignore-certificate-errors --ignore-ssl-errors --ignore-certificate-errors-spki-list --allow-running-insecure-content --disable-blink-features=AutomationControlled --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding
-    volumes:
+      - CHROME_CLI=--no-sandbox --start-maximized
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - chromium-config:/config
     ports:
