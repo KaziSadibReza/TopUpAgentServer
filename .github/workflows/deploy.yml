@@ -17,6 +17,7 @@ jobs:
           host: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
           key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.FTP_PORT }}
           script: |
             # Navigate to project directory
             cd ~/TopUpAgentServer
