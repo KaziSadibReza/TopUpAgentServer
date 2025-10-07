@@ -14,3 +14,4 @@ logs/*
 database/*
 !database/.gitkeep
 *.log
+nginx-letsencrypt/accounts
