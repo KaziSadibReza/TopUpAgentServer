@@ -112,7 +112,7 @@ class AutomationService {
 
         // First get the WebSocket URL via socat proxy with correct Host header
         const response = await axios.get(
-          "http://chromium-browser:9222/json/version",
+          "http://chromium-browser:9223/json/version",
           {
             headers: {
               Host: "localhost:9222", // Chrome requires this specific host header
@@ -127,7 +127,7 @@ class AutomationService {
         // Replace localhost:9222 with chromium-browser:9223 for inter-container communication
         wsUrl = wsUrl.replace(
           "ws://localhost:9222",
-          "ws://chromium-browser:9222"
+          "ws://chromium-browser:9223"
         );
 
         LogService.log("info", `Found WebSocket URL: ${wsUrl}`);
