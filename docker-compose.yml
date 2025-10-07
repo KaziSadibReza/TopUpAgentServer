@@ -38,9 +38,9 @@ services:
       - CHROME_CLI=--no-sandbox --start-maximized --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - chromium-config:/config
-    ports:
-      #- "4100:3000" # noVNC web interface - VISUAL BROWSER HERE!
-      #- "4101:3001" # VNC port (optional)
+    #ports:
+    #   - "4100:3000" # noVNC web interface - VISUAL BROWSER HERE!
+    #   - "4101:3001" # VNC port (optional)
     shm_size: "2gb"
     restart: unless-stopped
     networks:
