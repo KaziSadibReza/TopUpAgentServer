@@ -128,44 +128,76 @@ class AutomationService {
           "Attempting connection to visual Chrome via socat proxy..."
         );
 
-        // First get the WebSocket URL via socat proxy with correct Host header
-        const response = await axios.get(
-          "http://chromium-browser:9223/json/version",
-          {
-            headers: {
-              Host: "localhost:9222", // Chrome requires this specific host header
-            },
-            timeout: 5000,
+        let lastError;
+        let retries = 3;
+
+        while (retries > 0) {
+          try {
+            // Wait a bit before retry (except first attempt)
+            if (retries < 3) {
+              LogService.log(
+                "info",
+                `Retrying Chrome connection... (${4 - retries}/3)`
+              );
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+
+            // First get the WebSocket URL via socat proxy with correct Host header
+            const response = await axios.get(
+              "http://chromium-browser:9223/json/version",
+              {
+                headers: {
+                  Host: "localhost:9222", // Chrome requires this specific host header
+                },
+                timeout: 8000, // Increased timeout
+              }
+            );
+
+            const data = response.data;
+            let wsUrl = data.webSocketDebuggerUrl;
+
+            // Replace localhost:9222 with chromium-browser:9223 for inter-container communication
+            wsUrl = wsUrl.replace(
+              "ws://localhost:9222",
+              "ws://chromium-browser:9223"
+            );
+
+            LogService.log("info", `Found WebSocket URL: ${wsUrl}`);
+
+            // Connect using the WebSocket endpoint
+            const browser = await puppeteer.connect({
+              browserWSEndpoint: wsUrl,
+              defaultViewport: null,
+            });
+
+            browser.on("disconnected", () => {
+              LogService.log("info", "Visual Chrome browser disconnected");
+            });
+
+            LogService.log(
+              "info",
+              "✅ Successfully connected to visual Chrome!"
+            );
+            LogService.log(
+              "info",
+              "🎯 Automation will run in the visual browser at http://localhost:4100/"
+            );
+            return browser;
+          } catch (attemptError) {
+            lastError = attemptError;
+            retries--;
+
+            if (retries > 0) {
+              LogService.log(
+                "warning",
+                `Chrome connection attempt failed: ${attemptError.message}. Retrying...`
+              );
+            }
           }
-        );
+        }
 
-        const data = response.data;
-        let wsUrl = data.webSocketDebuggerUrl;
-
-        // Replace localhost:9222 with chromium-browser:9223 for inter-container communication
-        wsUrl = wsUrl.replace(
-          "ws://localhost:9222",
-          "ws://chromium-browser:9223"
-        );
-
-        LogService.log("info", `Found WebSocket URL: ${wsUrl}`);
-
-        // Connect using the WebSocket endpoint
-        const browser = await puppeteer.connect({
-          browserWSEndpoint: wsUrl,
-          defaultViewport: null,
-        });
-
-        browser.on("disconnected", () => {
-          LogService.log("info", "Visual Chrome browser disconnected");
-        });
-
-        LogService.log("info", "✅ Successfully connected to visual Chrome!");
-        LogService.log(
-          "info",
-          "🎯 Automation will run in the visual browser at http://localhost:4100/"
-        );
-        return browser;
+        // If all retries failed, throw the last error
+        throw lastError;
       } catch (error) {
         LogService.log("error", "Cannot connect to visual Chrome", {
           error: error.message,
@@ -223,16 +255,51 @@ external connections for security reasons.`);
       try {
         LogService.log("info", "Disconnecting from visual Chrome browser...");
 
-        // Get all pages and close them properly
+        // Get all pages and close only the ones we created (not the default blank page)
         const pages = await browser.pages();
+        let keptDefaultPage = false;
+
         for (const page of pages) {
           try {
             if (!page.isClosed()) {
-              await page.close();
+              const url = page.url();
+              // Keep at least one default Chrome page open
+              if (
+                !keptDefaultPage &&
+                (url === "about:blank" ||
+                  url === "chrome://newtab/" ||
+                  url.startsWith("chrome://"))
+              ) {
+                LogService.log("info", `Keeping default Chrome page: ${url}`);
+                keptDefaultPage = true;
+              } else if (
+                url !== "about:blank" &&
+                url !== "chrome://newtab/" &&
+                !url.startsWith("chrome://")
+              ) {
+                await page.close();
+                LogService.log("info", `Closed automation page: ${url}`);
+              }
             }
           } catch (pageError) {
             LogService.log("warning", "Error closing page", {
               error: pageError.message,
+            });
+          }
+        }
+
+        // If no default page was kept, create a new blank tab
+        if (!keptDefaultPage) {
+          try {
+            const newPage = await browser.newPage();
+            await newPage.goto("about:blank");
+            LogService.log(
+              "info",
+              "Created new blank tab to keep Chrome active"
+            );
+          } catch (newPageError) {
+            LogService.log("warning", "Could not create new blank tab", {
+              error: newPageError.message,
             });
           }
         }
@@ -387,6 +454,7 @@ external connections for security reasons.`);
 
     // Set global lock
     globalAutomationLock = true;
+    LogService.log("info", "🔒 Global automation lock acquired", { requestId });
 
     const packageName = this.getPackageFromCode(redimensionCode);
     const startTime = new Date();
@@ -916,9 +984,8 @@ external connections for security reasons.`);
         jobInfo.duration = duration;
         jobInfo.error = error.message;
 
-        // Get captured username from jobInfo, fallback to parameter or default
-        const capturedUsername =
-          jobInfo.capturedUsername || username || "Unknown Player";
+        // Get captured username from jobInfo, fallback to "Unknown Player"
+        const capturedUsername = jobInfo.capturedUsername || "Unknown Player";
 
         // Update database with error handling
         try {
@@ -965,6 +1032,9 @@ external connections for security reasons.`);
     } finally {
       // CRITICAL: Always release the global lock
       globalAutomationLock = false;
+      LogService.log("info", "🔓 Global automation lock released", {
+        requestId,
+      });
 
       // Close the page with proper cleanup if it exists
       if (page) {
