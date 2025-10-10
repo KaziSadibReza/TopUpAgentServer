@@ -13,8 +13,15 @@ function setAutomationService(automationServiceInstance) {
   );
 }
 
-// Export the setter function
+// Set queue service instance (called from app.js)
+function setQueueService(queueServiceInstance) {
+  queueService = queueServiceInstance;
+  console.log("🔗 Queue Routes: Updated with global QueueService instance");
+}
+
+// Export the setter functions
 router.setAutomationService = setAutomationService;
+router.setQueueService = setQueueService;
 
 /**
  * Add single automation to queue

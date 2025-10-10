@@ -149,10 +149,15 @@ const AutomationService = require("./services/AutomationService");
 const automationServiceInstance = new AutomationService();
 automationServiceInstance.setSocketIO(io);
 
+// Initialize QueueService with automation service instance for event-driven processing
+const QueueService = require("./services/queue-service");
+const queueServiceInstance = new QueueService(automationServiceInstance);
+
 // Set automation service instance in routes
 automationRoutes.setAutomationService(automationServiceInstance);
 databaseRoutes.setAutomationService(automationServiceInstance);
 queueRoutes.setAutomationService(automationServiceInstance);
+queueRoutes.setQueueService(queueServiceInstance); // Also set queue service
 
 // Health check endpoint (no auth required)
 app.get("/health", (req, res) => {

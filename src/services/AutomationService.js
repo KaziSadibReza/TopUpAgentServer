@@ -9,6 +9,9 @@ let globalAutomationService = null;
 // Global automation lock to prevent multiple simultaneous automations
 let globalAutomationLock = false;
 
+// Queue notification system - simple callback approach
+let queueNotificationCallback = null;
+
 class AutomationService {
   constructor() {
     // If global instance exists and has Socket.IO, return it
@@ -80,6 +83,22 @@ class AutomationService {
       `🔍 AutomationService: Global lock check from ${source} - locked: ${globalAutomationLock}`
     );
     return globalAutomationLock;
+  }
+
+  // Static method to register queue notification callback
+  static registerQueueNotification(callback) {
+    queueNotificationCallback = callback;
+    console.log("📡 AutomationService: Queue notification callback registered");
+  }
+
+  // Static method to notify queue when automation completes
+  static notifyQueueOfCompletion() {
+    if (queueNotificationCallback) {
+      console.log(
+        "📡 AutomationService: Notifying queue of automation completion"
+      );
+      queueNotificationCallback();
+    }
   }
 
   // Static method to get current running automations count
@@ -1043,6 +1062,9 @@ external connections for security reasons.`);
       LogService.log("info", "🔓 Global automation lock released", {
         requestId,
       });
+
+      // Notify queue that automation is complete and next item can start
+      this.constructor.notifyQueueOfCompletion();
 
       // Close the page with proper cleanup if it exists
       if (page) {
