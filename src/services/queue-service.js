@@ -223,8 +223,20 @@ class QueueService extends EventEmitter {
       this.isProcessing = false;
       await this.updateServerStatus(false);
 
-      // Immediately check for next item (no delays!)
-      setImmediate(() => this.processQueue());
+      // Only check for next item if we actually processed something
+      // This prevents infinite loops when queue is empty
+      const pendingCount = await AutomationQueue.count({
+        where: { status: "pending" },
+      });
+
+      if (pendingCount > 0) {
+        console.log(
+          `🔄 Queue Service: ${pendingCount} more items pending, continuing...`
+        );
+        setImmediate(() => this.processQueue());
+      } else {
+        console.log("✅ Queue Service: All items processed, queue is now idle");
+      }
     }
   }
 
@@ -308,8 +320,10 @@ class QueueService extends EventEmitter {
         screenshot_path: result.screenshot,
       });
 
-      // Send webhook if configured
-      if (queueItem.webhook_url) {
+      // For group automations, only send webhook when entire group is complete
+      // For single/manual automations, send webhook immediately
+      if (queueItem.webhook_url && !queueItem.group_id) {
+        // Single or manual automation - send webhook immediately
         await this.sendWebhook(
           queueItem.webhook_url,
           {
@@ -317,12 +331,13 @@ class QueueService extends EventEmitter {
             status: "completed",
             result: result.response,
             executionTime: result.executionTime,
+            automationType: queueItem.automation_type,
           },
           queueItem.api_key
         );
       }
 
-      // Handle group completion
+      // Handle group completion - this will send webhook for entire group
       if (queueItem.group_id) {
         await this.checkGroupCompletion(queueItem.group_id);
       }
@@ -468,17 +483,50 @@ class QueueService extends EventEmitter {
             ),
             "finished",
           ],
+          [
+            require("sequelize").fn(
+              "SUM",
+              require("sequelize").literal(
+                "CASE WHEN status = 'completed' THEN 1 ELSE 0 END"
+              )
+            ),
+            "successful",
+          ],
         ],
         raw: true,
       });
 
-      const { total, finished } = stats[0];
+      const { total, finished, successful } = stats[0];
 
       if (total === finished) {
         console.log(
-          `📦 Queue Service: Group ${groupId} completed (${finished}/${total} items)`
+          `📦 Queue Service: Group ${groupId} completed (${successful}/${total} successful)`
         );
-        this.emit("groupCompleted", { groupId, total, finished });
+
+        // Get the group items to send webhook
+        const groupItems = await AutomationQueue.findAll({
+          where: { group_id: groupId },
+          order: [["group_position", "ASC"]],
+        });
+
+        if (groupItems.length > 0 && groupItems[0].webhook_url) {
+          // Send webhook for entire group completion
+          await this.sendWebhook(
+            groupItems[0].webhook_url,
+            {
+              groupId: groupId,
+              status: "group_completed",
+              totalItems: total,
+              successfulItems: successful,
+              failedItems: total - successful,
+              automationType: "group",
+              completedAt: new Date().toISOString(),
+            },
+            groupItems[0].api_key
+          );
+        }
+
+        this.emit("groupCompleted", { groupId, total, finished, successful });
       }
     } catch (error) {
       console.error(
@@ -488,48 +536,6 @@ class QueueService extends EventEmitter {
     }
   }
 
-  // Schedule next queue processing
-  async scheduleNextProcessing() {
-    try {
-      const pendingCount = await AutomationQueue.count({
-        where: { status: "pending" },
-      });
-
-      if (pendingCount > 0) {
-        console.log(
-          `🚀 Queue Service: Starting next automation immediately (${pendingCount} pending items)`
-        );
-
-        // Check if automation service is available before proceeding
-        const AutomationService = require("./AutomationService");
-        if (AutomationService.checkGlobalLock("scheduleNextProcessing")) {
-          // Use longer delay to reduce retry spam
-          setTimeout(() => {
-            this.scheduleNextProcessing();
-          }, 1000); // Increased from 200ms to 1 second
-          return;
-        }
-
-        // Start next automation immediately without delay
-        setImmediate(() => {
-          if (!this.isProcessing) {
-            this.processQueue();
-          } else {
-            console.log(
-              "⏸️ Queue Service: Skipping immediate processing - already in progress"
-            );
-          }
-        });
-      }
-    } catch (error) {
-      console.error(
-        "❌ Queue Service: Error scheduling next processing:",
-        error
-      );
-    }
-  }
-
-  // Start automatic queue processor
   // Simple queue processor - no complex timing
   startQueueProcessor() {
     // Just start processing immediately when service starts
