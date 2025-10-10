@@ -76,20 +76,17 @@ class QueueService extends EventEmitter {
 
       const queueId = queueItem.id;
       console.log(
-        `📝 Queue Service: Added automation to queue - ID: ${queueId}, Type: ${queueType}, License: ${licenseKey}`
+        `📝 Queue Service: Added ${queueType} automation - ID: ${queueId}, Player: ${playerId}`
       );
 
-      // Trigger immediate processing if not busy
-      if (!this.isProcessing) {
-        console.log("🚀 Queue Service: Triggering immediate queue processing");
-        setImmediate(() => this.processQueue());
-      } else {
-        console.log(
-          "⏳ Queue Service: Queue busy, item will be processed next"
-        );
-      }
+      // Start processing immediately (no delays!)
+      setImmediate(() => this.processQueue());
 
-      return { success: true, queueId, message: "Automation added to queue" };
+      return {
+        success: true,
+        queueId,
+        message: "Automation added and started immediately",
+      };
     } catch (error) {
       console.error("❌ Queue Service: Failed to add to queue:", error);
       return { success: false, error: error.message };
@@ -168,155 +165,103 @@ class QueueService extends EventEmitter {
     }
   }
 
-  // Main queue processing function
+  // Main queue processing function - SIMPLIFIED
   async processQueue() {
     if (this.isProcessing) {
-      console.log("⏳ Queue Service: Processing already in progress");
+      console.log("⏳ Queue Service: Already processing, skipping");
       return;
     }
 
-    console.log("🔄 Queue Service: Starting queue processing");
     this.isProcessing = true;
+    console.log("🔄 Queue Service: Starting queue processing");
 
     try {
-      // Update server status as busy
-      await this.updateServerStatus(true);
-
-      // Get next pending item with highest priority
+      // Get next pending item (simple FIFO)
       const queueItem = await AutomationQueue.findOne({
         where: { status: "pending" },
-        order: [
-          ["priority", "DESC"],
-          ["scheduled_at", "ASC"],
-        ],
+        order: [["created_at", "ASC"]], // First come, first served
       });
 
       if (!queueItem) {
-        console.log("📭 Queue Service: No pending items found");
+        console.log("📭 Queue Service: No pending items");
         await this.updateServerStatus(false);
-        this.isProcessing = false;
-        console.log("✅ Queue Service: Processing completed - no items");
         return;
       }
 
       console.log(
-        `🚀 Queue Service: Processing queue item ID: ${queueItem.id}, Type: ${queueItem.queue_type}`
+        `🚀 Queue Service: Processing ${queueItem.queue_type} automation - ID: ${queueItem.id}`
       );
 
-      // Debug: Check if method exists
-      console.log(
-        "🔍 Debug: updateQueueItemStatus method exists:",
-        typeof this.updateQueueItemStatus
-      );
-      console.log(
-        "🔍 Debug: Available methods:",
-        Object.getOwnPropertyNames(Object.getPrototypeOf(this))
-      );
-
-      // Update item status to processing
-      await this.updateQueueItemStatus(queueItem.id, "processing", {
+      // Update to processing
+      await queueItem.update({
+        status: "processing",
         started_at: new Date(),
       });
 
-      // Store current automation reference
-      this.currentAutomation = queueItem;
+      // Update server as busy
+      await this.updateServerStatus(true, queueItem.id);
 
-      // Process the automation
+      // Run the automation (same logic for all types)
       const result = await this.executeAutomation(queueItem);
 
       // Handle result
       if (result.success) {
         await this.handleSuccess(queueItem, result);
+        console.log(
+          `✅ Queue Service: ${queueItem.queue_type} automation completed - ID: ${queueItem.id}`
+        );
       } else {
         await this.handleFailure(queueItem, result.error);
+        console.log(
+          `❌ Queue Service: ${queueItem.queue_type} automation failed - ID: ${queueItem.id}`
+        );
       }
     } catch (error) {
       console.error("💥 Queue Service: Processing error:", error);
     } finally {
-      this.currentAutomation = null;
-      await this.updateServerStatus(false);
+      // Clear processing flag and server status
       this.isProcessing = false;
-      console.log("✅ Queue Service: Processing completed and flag cleared");
+      await this.updateServerStatus(false);
 
-      // Give automation service time to release global lock before processing next item
-      setTimeout(async () => {
-        await this.scheduleNextProcessing();
-      }, 100); // Small delay to prevent race condition
+      // Immediately check for next item (no delays!)
+      setImmediate(() => this.processQueue());
     }
   }
 
-  // Execute the actual automation
+  // Execute automation - SIMPLIFIED
   async executeAutomation(queueItem) {
     const startTime = Date.now();
 
     try {
       // Update status to running
-      await this.updateQueueItemStatus(queueItem.id, "running");
+      await queueItem.update({ status: "running" });
 
-      // Use global automation service instance if available, otherwise create new one
-      let automationService;
-      if (this.automationServiceInstance) {
-        automationService = this.automationServiceInstance;
-        console.log(
-          "🔗 Queue Service: Using passed AutomationService instance with Socket.IO"
-        );
-      } else {
-        // Try to get global instance first
-        const AutomationService = require("./AutomationService");
-        const globalInstance = AutomationService.getGlobalInstance();
-
-        if (globalInstance && globalInstance.io) {
-          automationService = globalInstance;
-          console.log(
-            "🌍 Queue Service: Using global AutomationService instance with Socket.IO"
-          );
-        } else {
-          automationService = new AutomationService();
-          console.log(
-            "⚠️ Queue Service: Creating new AutomationService instance (no Socket.IO)"
-          );
-        }
-      }
-
-      // Wait for automation service to be available (with timeout)
+      // Get automation service
       const AutomationService = require("./AutomationService");
-      let waitCount = 0;
-      const maxWaitTime = 5000; // 5 seconds max wait
-      const waitInterval = 100; // Check every 100ms
+      let automationService =
+        this.automationServiceInstance || AutomationService.getGlobalInstance();
 
-      while (
-        AutomationService.checkGlobalLock("executeAutomation") &&
-        waitCount < maxWaitTime
-      ) {
-        console.log(
-          `⏳ Queue Service: Waiting for automation service to be available... (${waitCount}ms)`
-        );
-        await new Promise((resolve) => setTimeout(resolve, waitInterval));
-        waitCount += waitInterval;
+      if (!automationService) {
+        automationService = new AutomationService();
       }
 
-      // Final check - if still locked after waiting, fail
-      if (AutomationService.checkGlobalLock("executeAutomation-final")) {
-        throw new Error(
-          "Automation service is globally locked after waiting - another automation in progress"
-        );
-      }
+      console.log(
+        `🎯 Queue Service: Running automation for ${queueItem.queue_type} - Player: ${queueItem.player_id}`
+      );
 
-      console.log("✅ Queue Service: Automation service is now available");
-
-      // Execute automation
+      // Run automation directly (no complex waiting logic)
       const result = await automationService.runTopUpAutomation(
         queueItem.player_id,
-        queueItem.redimension_code || queueItem.license_key, // Use redimension_code or fallback to license_key
+        queueItem.redimension_code || queueItem.license_key,
         `queue_${queueItem.id}`,
-        queueItem // Pass the entire queue item so order_id can be extracted
+        queueItem
       );
 
       const executionTime = (Date.now() - startTime) / 1000;
 
       if (result.success) {
         console.log(
-          `✅ Queue Service: Automation completed - Queue ID: ${queueItem.id}, Time: ${executionTime}s`
+          `✅ Queue Service: Automation completed in ${executionTime}s`
         );
         return {
           success: true,
@@ -329,10 +274,7 @@ class QueueService extends EventEmitter {
       }
     } catch (error) {
       const executionTime = (Date.now() - startTime) / 1000;
-      console.error(
-        `❌ Queue Service: Automation failed - Queue ID: ${queueItem.id}, Error: ${error.message}`
-      );
-
+      console.error(`❌ Queue Service: Automation failed: ${error.message}`);
       return {
         success: false,
         error: error.message,
@@ -561,12 +503,10 @@ class QueueService extends EventEmitter {
         // Check if automation service is available before proceeding
         const AutomationService = require("./AutomationService");
         if (AutomationService.checkGlobalLock("scheduleNextProcessing")) {
-          console.log(
-            "⏳ Queue Service: Automation service still busy, will retry in 200ms"
-          );
+          // Use longer delay to reduce retry spam
           setTimeout(() => {
             this.scheduleNextProcessing();
-          }, 200);
+          }, 1000); // Increased from 200ms to 1 second
           return;
         }
 
@@ -590,24 +530,21 @@ class QueueService extends EventEmitter {
   }
 
   // Start automatic queue processor
+  // Simple queue processor - no complex timing
   startQueueProcessor() {
-    // Process queue every 30 seconds as fallback (reduced from 60s for faster processing)
+    // Just start processing immediately when service starts
+    console.log(
+      "🔄 Queue Service: Simple processor started - will process immediately when items added"
+    );
+
+    // Optional: Check every 10 seconds as safety net only
     this.processingInterval = setInterval(() => {
       if (!this.isProcessing) {
         this.processQueue().catch((error) => {
-          console.error(
-            "❌ Queue Service: Error in automatic processing:",
-            error
-          );
+          console.error("❌ Queue Service: Error in safety check:", error);
         });
-      } else {
-        console.log(
-          "⏸️ Queue Service: Skipping automatic processing - queue busy"
-        );
       }
-    }, 30000); // Changed back to 30000 for faster fallback processing
-
-    console.log("🔄 Queue Service: Automatic processor started (30s interval)");
+    }, 10000); // 10 seconds safety check
   }
 
   // Get queue statistics
