@@ -81,7 +81,12 @@ class QueueService extends EventEmitter {
 
       // Trigger immediate processing if not busy
       if (!this.isProcessing) {
+        console.log("🚀 Queue Service: Triggering immediate queue processing");
         setImmediate(() => this.processQueue());
+      } else {
+        console.log(
+          "⏳ Queue Service: Queue busy, item will be processed next"
+        );
       }
 
       return { success: true, queueId, message: "Automation added to queue" };
@@ -170,6 +175,7 @@ class QueueService extends EventEmitter {
       return;
     }
 
+    console.log("🔄 Queue Service: Starting queue processing");
     this.isProcessing = true;
 
     try {
@@ -189,6 +195,7 @@ class QueueService extends EventEmitter {
         console.log("📭 Queue Service: No pending items found");
         await this.updateServerStatus(false);
         this.isProcessing = false;
+        console.log("✅ Queue Service: Processing completed - no items");
         return;
       }
 
@@ -229,6 +236,7 @@ class QueueService extends EventEmitter {
       this.currentAutomation = null;
       await this.updateServerStatus(false);
       this.isProcessing = false;
+      console.log("✅ Queue Service: Processing completed and flag cleared");
 
       // Schedule next processing if there are pending items
       await this.scheduleNextProcessing();
@@ -266,6 +274,14 @@ class QueueService extends EventEmitter {
             "⚠️ Queue Service: Creating new AutomationService instance (no Socket.IO)"
           );
         }
+      }
+
+      // Check if automation service is already processing something
+      const AutomationService = require("./AutomationService");
+      if (AutomationService.isGloballyLocked()) {
+        throw new Error(
+          "Automation service is globally locked - another automation in progress"
+        );
       }
 
       // Execute automation
@@ -317,6 +333,7 @@ class QueueService extends EventEmitter {
 
       // Log result
       await AutomationResults.create({
+        jobId: `queue_${queueItem.id}`, // Add the missing jobId field
         queue_id: queueItem.id,
         source_site: queueItem.source_site,
         order_id: queueItem.order_id,
@@ -517,26 +534,20 @@ class QueueService extends EventEmitter {
       });
 
       if (pendingCount > 0) {
-        // Check for priority items
-        const priorityCount = await AutomationQueue.count({
-          where: {
-            status: "pending",
-            priority: { [Op.gt]: 0 },
-          },
-        });
-
-        // Longer delay to ensure proper browser cleanup between automations
-        const delay = priorityCount > 0 ? 10000 : 20000; // 10s for priority, 20s for normal
-
-        setTimeout(() => {
-          this.processQueue();
-        }, delay);
-
         console.log(
-          `⏰ Queue Service: Next processing in ${
-            delay / 1000
-          }s (${pendingCount} pending items)`
+          `🚀 Queue Service: Starting next automation immediately (${pendingCount} pending items)`
         );
+
+        // Start next automation immediately without delay
+        setImmediate(() => {
+          if (!this.isProcessing) {
+            this.processQueue();
+          } else {
+            console.log(
+              "⏸️ Queue Service: Skipping immediate processing - already in progress"
+            );
+          }
+        });
       }
     } catch (error) {
       console.error(
@@ -548,7 +559,7 @@ class QueueService extends EventEmitter {
 
   // Start automatic queue processor
   startQueueProcessor() {
-    // Process queue every 30 seconds as fallback
+    // Process queue every 30 seconds as fallback (reduced from 60s for faster processing)
     this.processingInterval = setInterval(() => {
       if (!this.isProcessing) {
         this.processQueue().catch((error) => {
@@ -557,8 +568,12 @@ class QueueService extends EventEmitter {
             error
           );
         });
+      } else {
+        console.log(
+          "⏸️ Queue Service: Skipping automatic processing - queue busy"
+        );
       }
-    }, 30000);
+    }, 30000); // Changed back to 30000 for faster fallback processing
 
     console.log("🔄 Queue Service: Automatic processor started (30s interval)");
   }
@@ -806,8 +821,15 @@ class QueueService extends EventEmitter {
   // Resume queue processing
   async resumeQueue() {
     try {
-      this.isProcessing = true;
+      this.isProcessing = false; // Reset to false to allow processing
       this.startQueueProcessor();
+
+      // Trigger immediate processing if there are pending items
+      setImmediate(() => {
+        if (!this.isProcessing) {
+          this.processQueue();
+        }
+      });
 
       console.log("▶️ Queue Service: Processing resumed");
       return true;

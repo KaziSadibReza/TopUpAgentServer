@@ -10,7 +10,7 @@ router.setAutomationService = (service) => {
 };
 
 /**
- * Execute single automation directly (legacy endpoint)
+ * Execute single automation directly (DEPRECATED - NOW USES QUEUE)
  * POST /api/automation/execute
  */
 router.post("/execute", async (req, res) => {
@@ -32,27 +32,38 @@ router.post("/execute", async (req, res) => {
       });
     }
 
-    const automationRequestId = requestId || `direct_${Date.now()}`;
-
-    // Execute automation directly
-    const result = await automationService.runTopUpAutomation(
-      playerId,
-      redimensionCode,
-      automationRequestId
+    // CRITICAL: Route all automations through queue to prevent conflicts
+    console.log(
+      "⚠️ Direct automation request - routing through queue for safety"
     );
+
+    // Import QueueService to add to queue instead of running directly
+    const QueueService = require("../services/queue-service");
+    const queueService = new QueueService(automationService);
+
+    const result = await queueService.addToQueue({
+      queueType: "direct_api",
+      sourceSite: req.get("host") || "direct_api",
+      licenseKey: redimensionCode,
+      redimensionCode: redimensionCode,
+      playerId: playerId,
+      priority: 1, // Give direct API calls higher priority
+      createdBy: "direct_api",
+    });
 
     if (result.success) {
       res.json({
         success: true,
-        requestId: automationRequestId,
-        result: result,
-        message: "Automation completed successfully",
+        requestId: `queue_${result.queueId}`,
+        queueId: result.queueId,
+        message:
+          "Automation added to queue successfully (routed through queue for safety)",
+        note: "Use /api/queue/status/{queueId} to check status",
       });
     } else {
       res.status(400).json({
         success: false,
-        error: result.error || "Automation failed",
-        requestId: automationRequestId,
+        error: result.error || "Failed to add automation to queue",
       });
     }
   } catch (error) {

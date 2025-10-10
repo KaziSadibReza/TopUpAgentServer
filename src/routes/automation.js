@@ -1,9 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const AutomationService = require("../services/AutomationService");
 const LogService = require("../services/LogService");
 
-// Start automation
+// Start automation (ROUTED THROUGH QUEUE FOR SAFETY)
 router.post("/", async (req, res) => {
   try {
     const { playerId, redimensionCode, requestId } = req.body;
@@ -19,38 +18,43 @@ router.post("/", async (req, res) => {
       requestId ||
       `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    LogService.log("info", "Automation request received", {
-      playerId,
-      redimensionCode: redimensionCode.substring(0, 10) + "...",
-      requestId: finalRequestId,
+    LogService.log(
+      "info",
+      "Automation request received - routing through queue",
+      {
+        playerId,
+        redimensionCode: redimensionCode.substring(0, 10) + "...",
+        requestId: finalRequestId,
+      }
+    );
+
+    // CRITICAL: Route through queue to prevent conflicts
+    const QueueService = require("../services/queue-service");
+    const queueService = new QueueService();
+
+    const result = await queueService.addToQueue({
+      queueType: "legacy_api",
+      sourceSite: req.get("host") || "legacy_api",
+      licenseKey: redimensionCode,
+      redimensionCode: redimensionCode,
+      playerId: playerId,
+      priority: 1, // Higher priority for legacy API
+      createdBy: "legacy_api",
     });
 
-    // Start automation in background with proper error handling
-    AutomationService.runTopUpAutomation(
-      playerId,
-      redimensionCode,
-      finalRequestId
-    )
-      .then((result) => {
-        LogService.log("info", "Automation completed successfully", {
-          requestId: finalRequestId,
-          result: result.success,
-        });
-      })
-      .catch((error) => {
-        LogService.log("error", "Automation failed", {
-          error: error.message,
-          requestId: finalRequestId,
-          stack: error.stack,
-        });
-        // Don't throw here to prevent unhandled rejection
+    if (result.success) {
+      res.json({
+        success: true,
+        requestId: `queue_${result.queueId}`,
+        queueId: result.queueId,
+        message: "Automation added to queue successfully (routed for safety)",
       });
-
-    res.json({
-      success: true,
-      message: "Automation started successfully",
-      requestId: finalRequestId,
-    });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: result.error || "Failed to add automation to queue",
+      });
+    }
   } catch (error) {
     LogService.log("error", "Failed to start automation", {
       error: error.message,
