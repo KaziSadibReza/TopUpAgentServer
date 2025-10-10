@@ -74,6 +74,14 @@ class AutomationService {
     return globalAutomationLock;
   }
 
+  // Static method to check lock with logging
+  static checkGlobalLock(source = "unknown") {
+    console.log(
+      `🔍 AutomationService: Global lock check from ${source} - locked: ${globalAutomationLock}`
+    );
+    return globalAutomationLock;
+  }
+
   // Static method to get current running automations count
   static getRunningAutomationsCount() {
     if (globalAutomationService) {

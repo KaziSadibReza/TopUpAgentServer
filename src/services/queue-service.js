@@ -238,8 +238,10 @@ class QueueService extends EventEmitter {
       this.isProcessing = false;
       console.log("✅ Queue Service: Processing completed and flag cleared");
 
-      // Schedule next processing if there are pending items
-      await this.scheduleNextProcessing();
+      // Give automation service time to release global lock before processing next item
+      setTimeout(async () => {
+        await this.scheduleNextProcessing();
+      }, 100); // Small delay to prevent race condition
     }
   }
 
@@ -276,13 +278,31 @@ class QueueService extends EventEmitter {
         }
       }
 
-      // Check if automation service is already processing something
+      // Wait for automation service to be available (with timeout)
       const AutomationService = require("./AutomationService");
-      if (AutomationService.isGloballyLocked()) {
+      let waitCount = 0;
+      const maxWaitTime = 5000; // 5 seconds max wait
+      const waitInterval = 100; // Check every 100ms
+
+      while (
+        AutomationService.checkGlobalLock("executeAutomation") &&
+        waitCount < maxWaitTime
+      ) {
+        console.log(
+          `⏳ Queue Service: Waiting for automation service to be available... (${waitCount}ms)`
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitInterval));
+        waitCount += waitInterval;
+      }
+
+      // Final check - if still locked after waiting, fail
+      if (AutomationService.checkGlobalLock("executeAutomation-final")) {
         throw new Error(
-          "Automation service is globally locked - another automation in progress"
+          "Automation service is globally locked after waiting - another automation in progress"
         );
       }
+
+      console.log("✅ Queue Service: Automation service is now available");
 
       // Execute automation
       const result = await automationService.runTopUpAutomation(
@@ -537,6 +557,18 @@ class QueueService extends EventEmitter {
         console.log(
           `🚀 Queue Service: Starting next automation immediately (${pendingCount} pending items)`
         );
+
+        // Check if automation service is available before proceeding
+        const AutomationService = require("./AutomationService");
+        if (AutomationService.checkGlobalLock("scheduleNextProcessing")) {
+          console.log(
+            "⏳ Queue Service: Automation service still busy, will retry in 200ms"
+          );
+          setTimeout(() => {
+            this.scheduleNextProcessing();
+          }, 200);
+          return;
+        }
 
         // Start next automation immediately without delay
         setImmediate(() => {
