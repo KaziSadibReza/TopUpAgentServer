@@ -6,6 +6,9 @@ const DatabaseService = require("./DatabaseService");
 // Global instance for singleton pattern
 let globalAutomationService = null;
 
+// Global automation lock to prevent multiple simultaneous automations
+let globalAutomationLock = false;
+
 class AutomationService {
   constructor() {
     // If global instance exists and has Socket.IO, return it
@@ -64,6 +67,21 @@ class AutomationService {
   // Static method to get global instance
   static getGlobalInstance() {
     return globalAutomationService;
+  }
+
+  // Static method to check if automation is currently locked
+  static isGloballyLocked() {
+    return globalAutomationLock;
+  }
+
+  // Static method to get current running automations count
+  static getRunningAutomationsCount() {
+    if (globalAutomationService) {
+      return Array.from(globalAutomationService.runningJobs.values()).filter(
+        (job) => job.status === "running"
+      ).length;
+    }
+    return 0;
   }
 
   // Function to get package name from redimension code
@@ -204,6 +222,21 @@ external connections for security reasons.`);
     if (browser) {
       try {
         LogService.log("info", "Disconnecting from visual Chrome browser...");
+
+        // Get all pages and close them properly
+        const pages = await browser.pages();
+        for (const page of pages) {
+          try {
+            if (!page.isClosed()) {
+              await page.close();
+            }
+          } catch (pageError) {
+            LogService.log("warning", "Error closing page", {
+              error: pageError.message,
+            });
+          }
+        }
+
         await browser.disconnect();
         LogService.log("info", "Browser disconnected successfully");
       } catch (error) {
@@ -340,6 +373,20 @@ external connections for security reasons.`);
     if (this.runningJobs.has(requestId)) {
       throw new Error("Job already running with this request ID");
     }
+
+    // CRITICAL: Check if any automation is currently running (prevent multiple simultaneous executions)
+    const currentlyRunning = Array.from(this.runningJobs.values()).some(
+      (job) => job.status === "running"
+    );
+
+    if (currentlyRunning || globalAutomationLock) {
+      throw new Error(
+        "Another automation is currently running. Only one automation can run at a time."
+      );
+    }
+
+    // Set global lock
+    globalAutomationLock = true;
 
     const packageName = this.getPackageFromCode(redimensionCode);
     const startTime = new Date();
@@ -870,7 +917,8 @@ external connections for security reasons.`);
         jobInfo.error = error.message;
 
         // Get captured username from jobInfo, fallback to parameter or default
-        const capturedUsername = jobInfo.capturedUsername || username || "Unknown Player";
+        const capturedUsername =
+          jobInfo.capturedUsername || username || "Unknown Player";
 
         // Update database with error handling
         try {
@@ -915,6 +963,9 @@ external connections for security reasons.`);
         throw error;
       }
     } finally {
+      // CRITICAL: Always release the global lock
+      globalAutomationLock = false;
+
       // Close the page with proper cleanup if it exists
       if (page) {
         try {

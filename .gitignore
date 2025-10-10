@@ -2,3 +2,4 @@ node_modules/
 
 server-bk/
 top-up-agent/
+.env

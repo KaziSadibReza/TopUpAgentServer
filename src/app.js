@@ -166,12 +166,30 @@ app.get("/health", (req, res) => {
 
 // Status endpoint (no auth required)
 app.get("/api/status", (req, res) => {
+  const AutomationService = require("./services/AutomationService");
+  const globalInstance = AutomationService.getGlobalInstance();
+
+  const runningJobs = globalInstance ? globalInstance.getRunningJobs() : [];
+  const isLocked = AutomationService.isGloballyLocked();
+  const runningCount = AutomationService.getRunningAutomationsCount();
+
   res.json({
     status: "running",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     memory: process.memoryUsage(),
     version: "1.0.0",
+    automation: {
+      globalLock: isLocked,
+      runningJobs: runningCount,
+      jobDetails: runningJobs.map((job) => ({
+        requestId: job.requestId,
+        playerId: job.playerId,
+        status: job.status,
+        startTime: job.startTime,
+        packageName: job.packageName,
+      })),
+    },
   });
 });
 
