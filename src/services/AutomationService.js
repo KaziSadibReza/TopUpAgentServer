@@ -406,7 +406,7 @@ external connections for security reasons.`);
       // Hard reload with cache bypass
       await page.reload({
         waitUntil: "networkidle2",
-        timeout: 30000,
+        timeout: 100000, // Increased to 100s for slow VPS connections
       });
 
       LogService.log("info", "Hard refresh completed", { requestId });
@@ -554,6 +554,9 @@ external connections for security reasons.`);
       browser = await this.createNewBrowser();
       page = await browser.newPage();
 
+      // Set default navigation timeout for all navigation operations
+      page.setDefaultNavigationTimeout(100000); // 100 seconds for slow VPS connections
+
       // Disable cache to prevent stale data issues
       await page.setCacheEnabled(false);
 
@@ -608,7 +611,7 @@ external connections for security reasons.`);
 
       await page.goto("https://shop.garena.my/?app=100067&channel=202953", {
         waitUntil: "networkidle2",
-        timeout: 30000,
+        timeout: 100000, // Increased to 100s for slow VPS connections
       });
 
       await this.logMessage(
@@ -751,7 +754,12 @@ external connections for security reasons.`);
         "button.inline-flex.items-center.justify-center.gap-1\\.5.rounded-md.border.py-1.text-center.leading-none.transition-colors.border-primary-red.bg-primary-red.text-white.hover\\:bg-primary-red-hover.hover\\:border-primary-red-hover.px-5.text-base.font-bold.h-11.w-full"
       );
 
-      await Promise.all([page.waitForNavigation()]);
+      await Promise.all([
+        page.waitForNavigation({
+          waitUntil: "networkidle2",
+          timeout: 100000, // Increased to 100s for slow VPS connections (this is the Unipin page load)
+        }),
+      ]);
 
       // Get the package name from the redimension code
       const packageName = this.getPackageFromCode(redimensionCode);
@@ -777,7 +785,10 @@ external connections for security reasons.`);
 
       if (packageButton) {
         await packageButton.click();
-        await page.waitForNavigation({ waitUntil: "networkidle2" });
+        await page.waitForNavigation({
+          waitUntil: "networkidle2",
+          timeout: 100000, // Increased to 100s for slow VPS connections
+        });
       } else {
         throw new Error(`Package ${packageName} not found on the page`);
       }
@@ -844,7 +855,10 @@ external connections for security reasons.`);
       LogService.log("info", "Waiting for transaction result...");
       // Wait for the next page to load
       try {
-        await page.waitForNavigation({ waitUntil: "networkidle2" });
+        await page.waitForNavigation({
+          waitUntil: "networkidle2",
+          timeout: 100000, // Increased to 100s for slow VPS connections
+        });
 
         // Check if there's an error message
         const errorElement = await page.$(".title-case-0");
