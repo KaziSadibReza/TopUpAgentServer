@@ -125,6 +125,7 @@ app.use(
         "http://localhost:3000",
         "http://127.0.0.1:8080",
         "https://gamesguru24.com",
+        "https://uidtopupbd.com/",
       ];
 
       if (allowedOrigins.indexOf(origin) !== -1) {
