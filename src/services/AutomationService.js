@@ -656,7 +656,8 @@ external connections for security reasons.`);
 
       // Wait for the username to appear with better error handling
       try {
-        await page.waitForSelector(".line-clamp-2.text-sm\\/none.font-bold", {
+        // Wait for the account section to load
+        await page.waitForSelector(".bg-bg-account", {
           timeout: 15000,
         });
       } catch (selectorError) {
@@ -671,11 +672,13 @@ external connections for security reasons.`);
 
         // Try alternative selectors for username
         const alternativeSelectors = [
+          ".bg-bg-account .font-bold",
+          ".line-clamp-2.font-bold",
+          ".text-sm\\/none.font-bold",
+          "[class*='line-clamp'][class*='font-bold']",
           ".username",
           ".user-name",
           ".player-name",
-          "[data-testid='username']",
-          ".text-sm.font-bold",
         ];
 
         let found = false;
@@ -702,29 +705,43 @@ external connections for security reasons.`);
       // Check cancellation before getting username
       await this.checkCancellation(requestId);
 
-      const username = await page
-        .$eval(".line-clamp-2.text-sm\\/none.font-bold", (el) => {
-          return el.innerText;
-        })
-        .catch(async () => {
-          // Try alternative extraction if primary fails
-          const alternatives = [
-            ".username",
-            ".user-name",
-            ".player-name",
-            "[data-testid='username']",
-            ".text-sm.font-bold",
-          ];
-
-          for (const selector of alternatives) {
-            try {
-              return await page.$eval(selector, (el) => el.innerText);
-            } catch (e) {
-              continue;
-            }
+      const username = await page.evaluate(() => {
+        // Try to find username in the account section
+        const accountDiv = document.querySelector(".bg-bg-account");
+        if (accountDiv) {
+          const usernameEl =
+            accountDiv.querySelector(".line-clamp-2.font-bold") ||
+            accountDiv.querySelector(
+              '[class*="line-clamp"][class*="font-bold"]'
+            );
+          if (usernameEl) {
+            let text = usernameEl.innerText || usernameEl.textContent;
+            // Remove "Username: " prefix if present
+            text = text.replace(/^Username:\s*/i, "").trim();
+            return text;
           }
-          return "Unknown Player";
-        });
+        }
+
+        // Fallback: try alternative selectors
+        const alternativeSelectors = [
+          ".line-clamp-2.font-bold",
+          '[class*="line-clamp"][class*="font-bold"]',
+          ".username",
+          ".user-name",
+          ".player-name",
+        ];
+
+        for (const selector of alternativeSelectors) {
+          const el = document.querySelector(selector);
+          if (el && el.innerText) {
+            let text = el.innerText.trim();
+            text = text.replace(/^Username:\s*/i, "").trim();
+            return text;
+          }
+        }
+
+        return "Unknown Player";
+      });
 
       await this.logMessage(requestId, "info", `Player found: ${username}`, {
         username,
